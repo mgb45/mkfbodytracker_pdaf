@@ -58,21 +58,24 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
 		
 	cv::Mat measurement1(2,2,CV_64F);
-	measurement1.at<double>(0,0) = msg->measurements[2].x;
-	measurement1.at<double>(0,1) = msg->measurements[2].y;
-	measurement1.at<double>(1,0) = msg->measurements[0].x;
-	measurement1.at<double>(1,1) = msg->measurements[0].y;
+	
+	double scale = 1.0;
+	
+	measurement1.at<double>(0,0) = msg->measurements[2].x/scale;
+	measurement1.at<double>(0,1) = msg->measurements[2].y/scale;
+	measurement1.at<double>(1,0) = msg->measurements[0].x/scale;
+	measurement1.at<double>(1,1) = msg->measurements[0].y/scale;
 	pf1->update(measurement1); // particle filter measurement left arm
 
 	cv::Mat measurement2(2,2,CV_64F);
-	measurement2.at<double>(0,0) = msg->measurements[2].x;
-	measurement2.at<double>(0,1) = msg->measurements[2].y;
-	measurement2.at<double>(1,0) = msg->measurements[1].x;
-	measurement2.at<double>(1,1) = msg->measurements[1].y;
+	measurement2.at<double>(0,0) = msg->measurements[2].x/scale;
+	measurement2.at<double>(0,1) = msg->measurements[2].y/scale;
+	measurement2.at<double>(1,0) = msg->measurements[1].x/scale;
+	measurement2.at<double>(1,1) = msg->measurements[1].y/scale;
 	pf2->update(measurement2); // particle filter measurement right arm
 
-	cv::Mat e1 = pf1->getEstimator(); // Weighted average pose estimate
-	cv::Mat e2 = pf2->getEstimator();
+	cv::Mat e1 = scale*pf1->getEstimator(); // Weighted average pose estimate
+	cv::Mat e2 = scale*pf2->getEstimator();
 	
 	// Draw body lines
 	//h-e
