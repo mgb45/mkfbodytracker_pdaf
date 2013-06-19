@@ -3,10 +3,18 @@
 	<remap from="image" to="/rgb/image_color"/>
   </node>
 
-  <node pkg="openni_camera" type="openni_node" name="kinect">
+<!--  <node pkg="openni_camera" type="openni_node" name="kinect">
 	  <param name="/image_mode" value="2"/>
-  </node>
+  </node> -->
 
+ <node name="usb_cam" pkg="usb_cam" type="usb_cam_node">
+    <param name="video_device" value="/dev/video1"/>
+    <param name="image_width" value="640"/>
+    <param name="image_height" value="480"/>
+    <param name="pixel_format" value="yuyv"/>
+    <param name="camera_frame_id" value="rgb"/>
+    <remap from="/usb_cam/image_raw" to="/rgb/image_raw"/>
+  </node>
 
   <node pkg="image_proc" type="image_proc" name="bayer2rgb">
 	<env name="ROS_NAMESPACE" value="/rgb"/>
