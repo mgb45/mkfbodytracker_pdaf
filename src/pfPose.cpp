@@ -60,34 +60,50 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 	cv::Mat measurement1(4,1,CV_64F);
 	
 	double scale = 1.0;
+	if (msg->valid[0])
+	{
+		measurement1.at<double>(0,0) = msg->measurements[2].x/scale;
+		measurement1.at<double>(1,0) = msg->measurements[2].y/scale;
+		measurement1.at<double>(2,0) = msg->measurements[0].x/scale;
+		measurement1.at<double>(3,0) = msg->measurements[0].y/scale;
+		pf1->update(measurement1); // particle filter measurement left arm
+	}
 	
-	measurement1.at<double>(0,0) = msg->measurements[2].x/scale;
-	measurement1.at<double>(1,0) = msg->measurements[2].y/scale;
-	measurement1.at<double>(2,0) = msg->measurements[0].x/scale;
-	measurement1.at<double>(3,0) = msg->measurements[0].y/scale;
-	pf1->update(measurement1); // particle filter measurement left arm
-
 	cv::Mat measurement2(4,1,CV_64F);
-	measurement2.at<double>(0,0) = msg->measurements[2].x/scale;
-	measurement2.at<double>(1,0) = msg->measurements[2].y/scale;
-	measurement2.at<double>(2,0) = msg->measurements[1].x/scale;
-	measurement2.at<double>(3,0) = msg->measurements[1].y/scale;
-	pf2->update(measurement2); // particle filter measurement right arm
+	if (msg->valid[1])
+	{
+		measurement2.at<double>(0,0) = msg->measurements[2].x/scale;
+		measurement2.at<double>(1,0) = msg->measurements[2].y/scale;
+		measurement2.at<double>(2,0) = msg->measurements[1].x/scale;
+		measurement2.at<double>(3,0) = msg->measurements[1].y/scale;
+		pf2->update(measurement2); // particle filter measurement right arm
+	}
 
 	cv::Mat e1 = scale*pf1->getEstimator(); // Weighted average pose estimate
 	cv::Mat e2 = scale*pf2->getEstimator();
 	
 	// Draw body lines
-	//h-e
-	line(image, Point(e1.at<double>(0,0),e1.at<double>(0,1)), Point(e1.at<double>(0,2),e1.at<double>(0,3)), Scalar(255, 0, 255), 5, 8,0);
-	line(image, Point(e2.at<double>(0,0),e2.at<double>(0,1)), Point(e2.at<double>(0,2),e2.at<double>(0,3)), Scalar(255, 0, 255), 5, 8,0);
-	//E -S
-	line(image, Point(e1.at<double>(0,2),e1.at<double>(0,3)), Point(e1.at<double>(0,4),e1.at<double>(0,5)), Scalar(0, 255, 255), 5, 8,0);
-	line(image, Point(e2.at<double>(0,2),e2.at<double>(0,3)), Point(e2.at<double>(0,4),e2.at<double>(0,5)), Scalar(0, 255, 255), 5, 8,0);
-	//S-S
-	line(image, Point(e1.at<double>(0,4),e1.at<double>(0,5)), Point(e2.at<double>(0,4),e2.at<double>(0,5)), Scalar(255, 255, 0), 5, 8,0);
-	// S -H
-	line(image, Point((e2.at<double>(0,4) +e1.at<double>(0,4))/2,(e2.at<double>(0,5) +e1.at<double>(0,5))/2), Point(msg->measurements[2].x,msg->measurements[2].y), Scalar(255, 255,0), 5, 8,0);
+	if (msg->valid[0])
+	{
+		line(image, Point(e1.at<double>(0,0),e1.at<double>(0,1)), Point(e1.at<double>(0,2),e1.at<double>(0,3)), Scalar(255, 0, 255), 5, 8,0);
+		line(image, Point(e1.at<double>(0,2),e1.at<double>(0,3)), Point(e1.at<double>(0,4),e1.at<double>(0,5)), Scalar(0, 255, 255), 5, 8,0);
+	}
+	
+	if (msg->valid[1])
+	{
+		//h-e
+		line(image, Point(e2.at<double>(0,0),e2.at<double>(0,1)), Point(e2.at<double>(0,2),e2.at<double>(0,3)), Scalar(255, 0, 255), 5, 8,0);
+		//E -S
+		line(image, Point(e2.at<double>(0,2),e2.at<double>(0,3)), Point(e2.at<double>(0,4),e2.at<double>(0,5)), Scalar(0, 255, 255), 5, 8,0);
+		//S-S
+		// S -H
+	}
+	
+	if ((msg->valid[1])&&(msg->valid[0]))
+	{
+		line(image, Point(e1.at<double>(0,4),e1.at<double>(0,5)), Point(e2.at<double>(0,4),e2.at<double>(0,5)), Scalar(255, 255, 0), 5, 8,0);
+		line(image, Point((e2.at<double>(0,4) +e1.at<double>(0,4))/2,(e2.at<double>(0,5) +e1.at<double>(0,5))/2), Point(msg->measurements[2].x,msg->measurements[2].y), Scalar(255, 255,0), 5, 8,0);
+	}
 	
 	cv_bridge::CvImage img2;
 	img2.encoding = "rgb8";
