@@ -7,12 +7,18 @@
 	  <param name="/image_mode" value="2"/>
   </node> -->
 
+<!-- HD lifecam -->
  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node">
     <param name="video_device" value="/dev/video1"/>
     <param name="image_width" value="640"/>
     <param name="image_height" value="480"/>
     <param name="pixel_format" value="yuyv"/>
     <param name="camera_frame_id" value="rgb"/>
+    <param name="camera_info_url" value="package://pfBodyTracker/cal.yml"/>
+    <rosparam param="D">[0.071945, -0.339310, 0.002847, 0.001050, 0.0000]</rosparam>
+    <rosparam param="K">[660.326889, 0.000000, 318.705890, 0.000000, 660.857176, 240.784699, 0.000000, 0.000000, 1.000000]</rosparam>
+    <rosparam param="R">[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]</rosparam>
+    <rosparam param="P">[658.042297, 0.000000, 318.662852, 0.000000, 0.000000, 661.851440, 241.034575, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]</rosparam>
     <remap from="/usb_cam/image_raw" to="/rgb/image_raw"/>
   </node>
 
