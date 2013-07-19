@@ -108,8 +108,19 @@ void ParticleFilter::update(cv::Mat measurement)
 	wsum = 0;
 	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
 	{
+		gmm.KFweight[i] = gmm.KFweight[i] + 1e-5;
+		wsum += gmm.KFweight[i];
+	}
+	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
+	{
+		gmm.KFweight[i] = gmm.KFweight[i]/wsum;
+	}
+	
+	wsum = 0;
+	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
+	{
 		gmm.KFtracker[i].predict(gmm.mean[i].t());
-		gmm.KFweight[i] = gmm.weight[i]*mvnpdf(gmm.KFtracker[i].statePost,gmm.mean[i].t(),gmm.sigma[i]+Sigma_a)*mvnpdf(measurement,gmm.KFtracker[i].measurementMatrix*gmm.KFtracker[i].statePre,gmm.KFtracker[i].measurementMatrix*gmm.KFtracker[i].errorCovPre*gmm.KFtracker[i].measurementMatrix.t()+gmm.KFtracker[i].measurementNoiseCov);
+		gmm.KFweight[i] = gmm.KFweight[i]*gmm.weight[i]*mvnpdf(measurement,gmm.KFtracker[i].measurementMatrix*gmm.KFtracker[i].statePre,gmm.KFtracker[i].measurementMatrix*gmm.KFtracker[i].errorCovPre*gmm.KFtracker[i].measurementMatrix.t()+gmm.KFtracker[i].measurementNoiseCov);//*mvnpdf(gmm.KFtracker[i].statePost,gmm.mean[i].t(),gmm.sigma[i]+Sigma_a);
 		wsum = wsum + gmm.KFweight[i];
 		gmm.KFtracker[i].correct(measurement);
 	}
