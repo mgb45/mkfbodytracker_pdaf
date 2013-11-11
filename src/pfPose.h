@@ -25,6 +25,7 @@
 #include "opencv2/ml/ml.hpp"
 #include "handBlobTracker/HFPose2D.h"
 #include "handBlobTracker/HFPose2DArray.h"
+#include <tf/transform_broadcaster.h>
 
 class PFTracker
 {
@@ -36,6 +37,7 @@ class PFTracker
 		ParticleFilter *pf1;
 		ros::NodeHandle nh;
 		image_transport::Publisher pub;
+		ros::Publisher hand_pub;
 		ParticleFilter *pf2;
 		
 		void callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg); // Detected face array/ image callback
@@ -43,6 +45,13 @@ class PFTracker
 		message_filters::Synchronizer<MySyncPolicy>* sync;
 		message_filters::Subscriber<sensor_msgs::Image> image_sub;
 		message_filters::Subscriber<handBlobTracker::HFPose2DArray> pose_sub;	
+		cv::Mat means1, weights1;
+		cv::Mat means2, weights2;
+		cv::Mat covs1;
+		cv::Mat covs2;
+		
+		cv::Mat rpy(double roll, double pitch, double yaw);
+		cv::Mat get3Dpose(cv::Mat estimate);
 };
 
 #endif

@@ -15,6 +15,7 @@ class my_gmm
 		my_gmm();
 		~my_gmm();
 		void loadGaussian(cv::Mat mean, cv::Mat sigma, double weight);
+		void resetTracker();
 		std::vector<cv::Mat> mean;
 		std::vector<cv::Mat> sigma;
 		std::vector<double> weight;
@@ -27,10 +28,11 @@ class my_gmm
 class ParticleFilter
 {
 	public:
-		ParticleFilter();
+		ParticleFilter(int states);
 		~ParticleFilter();		
 		void update(cv::Mat measurement);
 		cv::Mat getEstimator();
+		cv::Mat getHandLikelihood();
 		my_gmm gmm;
 	protected:
 
