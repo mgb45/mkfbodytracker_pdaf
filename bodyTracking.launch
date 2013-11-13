@@ -14,7 +14,7 @@
     <param name="image_height" value="480"/>
     <param name="pixel_format" value="yuyv"/>
     <param name="camera_frame_id" value="rgb"/>
-    <param name="auto_focus" value="1"/>
+    <param name="auto_focus" value="0"/>
     <rosparam param="D">[0.071945, -0.339310, 0.002847, 0.001050, 0.0000]</rosparam>
     <rosparam param="K">[660.326889, 0.000000, 318.705890, 0.000000, 660.857176, 240.784699, 0.000000, 0.000000, 1.000000]</rosparam>
     <rosparam param="R">[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]</rosparam>

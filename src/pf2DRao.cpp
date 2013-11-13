@@ -162,6 +162,7 @@ void ParticleFilter::update(cv::Mat measurement)
 		gmm.KFweight[i] = gmm.KFweight[i] + 5e-2;
 		wsum += gmm.KFweight[i];
 	}
+	
 	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
 	{
 		gmm.KFweight[i] = gmm.KFweight[i]/wsum;
