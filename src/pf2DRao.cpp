@@ -118,26 +118,15 @@ cv::Mat ParticleFilter::getEstimator()
 }
 
 // Weighted	average pose estimate
-cv::Mat ParticleFilter::getHandLikelihood()
+double ParticleFilter::getHandLikelihood(cv::Mat pt)
 {
-	
-	cv::Mat image = cv::Mat::zeros(480,640,CV_8UC1);
+	double p1 = 0;
 	for (int i = 0;  i < (int)gmm.KFtracker.size(); i++)
 	{
-		//cout << gmm.KFtracker[i].statePost.rowRange(Range(0,2));
-		for (int j = 0;  j < 640; j++)
-		{
-			for (int k = 0;  k < 480; k++)
-			{
-				gmm.KFweight[i] = gmm.KFweight[i]/wsum;
-				cv::Mat pt = (cv::Mat_<double>(2,1) << j, k);
-				
-				image.at<uchar>(k,j) = image.at<uchar>(k,j) + (int)255*gmm.KFweight[i]*mvnpdf(pt,gmm.KFtracker[i].statePost.rowRange(Range(0,2)),gmm.KFtracker[i].errorCovPost(Range(0,2),Range(0,2)));
-			}
-		}
+		//ROS_INFO("Weights %f %f %f",gmm.KFweight[i],pt.at<double>(0,0),pt.at<double>(1,0));
+		p1 = p1 + gmm.KFweight[i]*mvnpdf(pt,gmm.KFtracker[i].statePost.rowRange(Range(0,2)),gmm.KFtracker[i].errorCovPost(Range(0,2),Range(0,2)));
 	}
-	//~ cout << estimate << std::endl;
-	return image;
+	return p1;
 }
 
 // Evaulate multivariate gaussian - measurement model

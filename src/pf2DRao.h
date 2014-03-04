@@ -32,7 +32,7 @@ class ParticleFilter
 		~ParticleFilter();		
 		void update(cv::Mat measurement);
 		cv::Mat getEstimator();
-		cv::Mat getHandLikelihood();
+		double getHandLikelihood(cv::Mat pt);
 		my_gmm gmm;
 	protected:
 

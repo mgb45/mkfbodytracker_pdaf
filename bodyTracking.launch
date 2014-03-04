@@ -27,7 +27,7 @@
   </node> -->
 
   <node pkg="image_view" type="image_view" name="im_in">
-	<remap from="image" to="/rgb/image_color"/>
+	<remap from="image" to="armImage"/>
   </node>
 
   <node pkg="image_view" type="image_view" name="im_out1">

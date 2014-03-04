@@ -15,8 +15,9 @@
 #include "sensor_msgs/RegionOfInterest.h"
 #include "geometry_msgs/Point.h"
 #include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
+//#include <message_filters/synchronizer.h>
+//#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/time_synchronizer.h>
 //~ #include "pf2D.h"
 #include "pf2DRao.h"
 #include <sstream>
@@ -37,14 +38,15 @@ class PFTracker
 		ParticleFilter *pf1;
 		ros::NodeHandle nh;
 		image_transport::Publisher pub;
+		image_transport::Publisher arm_pub;
 		ros::Publisher hand_pub;
 		ParticleFilter *pf2;
 		
 		void callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg); // Detected face array/ image callback
-		typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, handBlobTracker::HFPose2DArray> MySyncPolicy; // synchronising image and face array
-		message_filters::Synchronizer<MySyncPolicy>* sync;
+		message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>* sync;
 		message_filters::Subscriber<sensor_msgs::Image> image_sub;
 		message_filters::Subscriber<handBlobTracker::HFPose2DArray> pose_sub;	
+		
 		cv::Mat means1, weights1;
 		cv::Mat means2, weights2;
 		cv::Mat covs1;
@@ -52,6 +54,9 @@ class PFTracker
 		
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
+		cv::Mat associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg);
+		
+		int trackCount;
 };
 
 #endif
