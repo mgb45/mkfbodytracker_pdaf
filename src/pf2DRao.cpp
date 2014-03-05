@@ -53,11 +53,11 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 	randu(tracker.statePre, Scalar(0), Scalar(480));
 	randu(tracker.statePost, Scalar(0), Scalar(480));
 	
-	setIdentity(tracker.errorCovPost, Scalar::all(500000));
-	setIdentity(tracker.errorCovPre, Scalar::all(500000));
+	setIdentity(tracker.errorCovPost, Scalar::all(5000));
+	setIdentity(tracker.errorCovPre, Scalar::all(5000));
 	
 	cv::invert(Sigma_a.inv() + temp, tracker.processNoiseCov, DECOMP_LU);
-	setIdentity(tracker.measurementNoiseCov, Scalar::all(15));
+	setIdentity(tracker.measurementNoiseCov, Scalar::all(5));
 	
 	tracker.transitionMatrix = tracker.processNoiseCov*Sigma_a.inv();
 	

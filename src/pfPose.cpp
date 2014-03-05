@@ -111,18 +111,17 @@ cv::Mat PFTracker::associateHands(const handBlobTracker::HFPose2DArrayConstPtr& 
 	double p1 = pf1->getHandLikelihood(pt1)*pf2->getHandLikelihood(pt2);
 	double p2 = pf1->getHandLikelihood(pt2)*pf2->getHandLikelihood(pt1);
 	
-	ROS_INFO("Probs %f %f",p1,p2);
-	
+	//ROS_INFO("%f %f",p1,p2);
 	cv::Mat pt(4,1,CV_64F);	
-	if (p1 > p2)
+	if (p1 < p2)
 	{
-		 pt1.copyTo(pt.rowRange(Range(0,2)));
-		 pt2.copyTo(pt.rowRange(Range(2,4)));
+		 pt2.copyTo(pt.rowRange(Range(0,2)));
+		 pt1.copyTo(pt.rowRange(Range(2,4)));
 	}
 	else
 	{
-		pt2.copyTo(pt.rowRange(Range(0,2)));
-		pt1.copyTo(pt.rowRange(Range(2,4)));
+		pt1.copyTo(pt.rowRange(Range(0,2)));
+		pt2.copyTo(pt.rowRange(Range(2,4)));
 	}
 	return pt;
 }
