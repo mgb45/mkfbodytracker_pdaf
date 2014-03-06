@@ -15,10 +15,7 @@
 #include "sensor_msgs/RegionOfInterest.h"
 #include "geometry_msgs/Point.h"
 #include <message_filters/subscriber.h>
-//#include <message_filters/synchronizer.h>
-//#include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/time_synchronizer.h>
-//~ #include "pf2D.h"
 #include "pf2DRao.h"
 #include <sstream>
 #include <string>
@@ -38,7 +35,7 @@ class PFTracker
 		ParticleFilter *pf1;
 		ros::NodeHandle nh;
 		image_transport::Publisher pub;
-		image_transport::Publisher arm_pub;
+		image_transport::Publisher edge_pub;
 		ros::Publisher hand_pub;
 		ParticleFilter *pf2;
 		
@@ -55,8 +52,11 @@ class PFTracker
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
 		cv::Mat associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg);
+		bool edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3);
 		
+		double e1d;
 		int trackCount;
+		bool swap;
 };
 
 #endif

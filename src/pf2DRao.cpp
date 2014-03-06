@@ -25,17 +25,17 @@ my_gmm::~my_gmm()
 }
 
 //Re-initialise tracker with large uncertainty and random state
-void my_gmm::resetTracker()
-{
-	for (int i = 0; i < (int)KFtracker.size(); i++)
-	{
-		randu(KFtracker[i].statePre, Scalar(0), Scalar(480));
-		randu(KFtracker[i].statePost, Scalar(0), Scalar(480));
+//void my_gmm::resetTracker()
+//{
+	//for (int i = 0; i < (int)KFtracker.size(); i++)
+	//{
+		//randu(KFtracker[i].statePre, Scalar(0), Scalar(480));
+		//randu(KFtracker[i].statePost, Scalar(0), Scalar(480));
 		
-		setIdentity(KFtracker[i].errorCovPost, Scalar::all(4500));
-		setIdentity(KFtracker[i].errorCovPre, Scalar::all(4500));
-	}
-}
+		//setIdentity(KFtracker[i].errorCovPost, Scalar::all(4500));
+		//setIdentity(KFtracker[i].errorCovPre, Scalar::all(4500));
+	//}
+//}
 
 // Load a gaussian for gmm with mean, sigma and weight		
 void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
@@ -50,11 +50,13 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 	cv::KalmanFilter tracker;
 	tracker.init(s.cols,6,s.cols,CV_64F);
 	
-	randu(tracker.statePre, Scalar(0), Scalar(480));
-	randu(tracker.statePost, Scalar(0), Scalar(480));
+	tracker.statePre = u.t();
+	tracker.statePost = u.t();
 	
-	setIdentity(tracker.errorCovPost, Scalar::all(5000));
-	setIdentity(tracker.errorCovPre, Scalar::all(5000));
+	setIdentity(tracker.errorCovPost, Scalar::all(500));
+	setIdentity(tracker.errorCovPre, Scalar::all(500));
+	//tracker.errorCovPost = s;
+	//tracker.errorCovPre = s;
 	
 	cv::invert(Sigma_a.inv() + temp, tracker.processNoiseCov, DECOMP_LU);
 	setIdentity(tracker.measurementNoiseCov, Scalar::all(5));
@@ -113,6 +115,7 @@ cv::Mat ParticleFilter::getEstimator()
 		gmm.KFweight[i] = gmm.KFweight[i]/wsum;
 		estimate = estimate + gmm.KFweight[i]*gmm.KFtracker[i].statePost;
 	}
+	wsum = 1.0;
 	//~ cout << estimate << std::endl;
 	return estimate;
 }
@@ -124,7 +127,7 @@ double ParticleFilter::getHandLikelihood(cv::Mat pt)
 	for (int i = 0;  i < (int)gmm.KFtracker.size(); i++)
 	{
 		//ROS_INFO("Weights %f %f %f",gmm.KFweight[i],pt.at<double>(0,0),pt.at<double>(1,0));
-		p1 = p1 + gmm.KFweight[i]*mvnpdf(pt,gmm.KFtracker[i].statePost.rowRange(Range(0,2)),gmm.KFtracker[i].errorCovPost(Range(0,2),Range(0,2)));
+		p1 = p1 + gmm.KFweight[i]/wsum*mvnpdf(pt,gmm.KFtracker[i].statePost.rowRange(Range(0,2)),gmm.KFtracker[i].errorCovPost(Range(0,2),Range(0,2)));
 	}
 	return p1;
 }
