@@ -15,7 +15,6 @@ PFTracker::PFTracker()
 	image_sub.subscribe(nh, "/rgb/image_color", 1); // requires camera stream input
 	pose_sub.subscribe(nh, "/faceHandPose", 1); // requires face array input
 	
-	//sync = new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(100),image_sub, pose_sub);
 	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>(image_sub,pose_sub,10);
 	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2));
 	
@@ -195,7 +194,6 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 		e1d = 1e-1;
 		value = false;
 	}
-		
 
 	return value;
 }
@@ -471,6 +469,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 			pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)),weights1.at<double>(0,i));
 			pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),weights2.at<double>(0,i));
 		}
+		swap = false;
 		trackCount = 0;
 		e1d = 1e-1;
 		
