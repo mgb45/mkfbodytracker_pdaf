@@ -32,30 +32,26 @@ class PFTracker
 		~PFTracker();
 				
 	private:
-		ParticleFilter *pf1;
 		ros::NodeHandle nh;
 		image_transport::Publisher pub;
 		image_transport::Publisher edge_pub;
 		ros::Publisher hand_pub;
-		ParticleFilter *pf2;
 		
-		void callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg); // Detected face array/ image callback
+		ParticleFilter *pf1;
+		ParticleFilter *pf2;
+				
+		void callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg);
+		
 		message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>* sync;
 		message_filters::Subscriber<sensor_msgs::Image> image_sub;
 		message_filters::Subscriber<handBlobTracker::HFPose2DArray> pose_sub;	
-		
-		cv::Mat means1, weights1;
-		cv::Mat means2, weights2;
-		cv::Mat covs1;
-		cv::Mat covs2;
 		
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
 		cv::Mat associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg);
 		bool edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3);
 		
-		double e1d;
-		int trackCount;
+		double edge_heuristic;
 		bool swap;
 };
 
