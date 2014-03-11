@@ -75,8 +75,8 @@ ParticleFilter::ParticleFilter(int states)
 {
 	cv::Mat Sigma_a = Mat::zeros(states, states, CV_64F);
 	setIdentity(Sigma_a, Scalar::all(25));
-	Sigma_a.at<double>(0,0) = 5600;
-	Sigma_a.at<double>(1,1) = 5600;
+	Sigma_a.at<double>(0,0) = 560;
+	Sigma_a.at<double>(1,1) = 560;
 	Sigma_a.at<double>(2,2) = 1;
 	Sigma_a.at<double>(3,3) = 560;
 	Sigma_a.at<double>(4,4) = 560;

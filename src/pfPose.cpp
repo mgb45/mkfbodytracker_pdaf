@@ -171,14 +171,14 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 		if (temp > e3)
 		{
 			e3 = temp;
-			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,255,0), 1, CV_AA);
+			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,255,0), 1, CV_AA);
 		}
 		
 		temp = exp(-0.5*(1.0/125.0*d4 + 1.0/0.01*pow(atan(sin(right_arm_u_th - th)/cos(right_arm_u_th - th)),2)));
 		if (temp > e4)
 		{
 			e4 = temp;
-			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,255,0), 1, CV_AA);
+			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,255,0), 1, CV_AA);
 		}
 	}
 	
@@ -190,7 +190,7 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 		edge_heuristic = 1e-1;
 		value = false;
 	}
-
+	
 	return value;
 }
 
