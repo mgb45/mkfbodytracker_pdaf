@@ -80,10 +80,10 @@ ParticleFilter::ParticleFilter(int states)
 	Sigma_a.at<double>(2,2) = 1;
 	Sigma_a.at<double>(3,3) = 560;
 	Sigma_a.at<double>(4,4) = 560;
-	Sigma_a.at<double>(5,5) = 1;
-	Sigma_a.at<double>(8,8) = 1;
-	Sigma_a.at<double>(11,11) = 1;
-	Sigma_a.at<double>(14,14) = 1;
+	Sigma_a.at<double>(5,5) = 0.1;
+	Sigma_a.at<double>(8,8) = 0.1;
+	Sigma_a.at<double>(11,11) = 0.1;
+	Sigma_a.at<double>(14,14) = 0.1;
 	Sigma_a.at<double>(15,15) = 0.09;
 	Sigma_a.at<double>(16,16) = 0.09;
 	Sigma_a.at<double>(17,17) = 0.09;
@@ -124,16 +124,10 @@ double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 // Update stage
 void ParticleFilter::update(cv::Mat measurement)
 {
-	wsum = 0;
+	// Add eps (5e-2) and renormalise
 	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
 	{
-		gmm.KFweight[i] = gmm.KFweight[i] + 5e-2;
-		wsum += gmm.KFweight[i];
-	}
-	
-	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
-	{
-		gmm.KFweight[i] = gmm.KFweight[i]/wsum;
+		gmm.KFweight[i] = (gmm.KFweight[i] + 5e-2)/(wsum+(int)gmm.KFweight.size()*5e-2);
 	}
 	
 	wsum = 0;
