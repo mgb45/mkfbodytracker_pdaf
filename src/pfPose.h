@@ -53,6 +53,7 @@ class PFTracker
 		
 		double edge_heuristic;
 		bool swap;
+		int d;
 };
 
 #endif

@@ -36,8 +36,9 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-	pf1 = new ParticleFilter(covs1.cols); // left arm pf
-	pf2 = new ParticleFilter(covs2.cols); // right arm pf
+    d = covs1.cols;
+	pf1 = new ParticleFilter(d,100); // left arm pf
+	pf2 = new ParticleFilter(d,100); // right arm pf
    
 	for (int i = 0; i < means1.rows; i++)
 	{
@@ -326,7 +327,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		
 		// Edge-based sanity check on pose
 		cv::Mat edge_image = cv::Mat::zeros(image.rows,image.cols,CV_8UC3);
-		bool val = edgePoseCorrection(image,rosHandsArr,edge_image);
+		bool val = true;//edgePoseCorrection(image,rosHandsArr,edge_image);
 		//Publish edge correction results
 		cv_bridge::CvImage img_edge;
 		img_edge.header = immsg->header;
@@ -336,8 +337,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		if (!val) // Reset trackers if tracking failure
 		{
 			ROS_DEBUG("Resetting trackers");
-			pf1->gmm.resetTracker();
-			pf2->gmm.resetTracker();
+			pf1->gmm.resetTracker(d);
+			pf2->gmm.resetTracker(d);
 			swap = !swap;
 			edge_heuristic = 1e-1;
 			circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
@@ -375,8 +376,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 	else
 	{
 		ROS_DEBUG("Resetting trackers");
-		pf1->gmm.resetTracker();
-		pf2->gmm.resetTracker();
+		pf1->gmm.resetTracker(d);
+		pf2->gmm.resetTracker(d);
 		swap = false;
 		edge_heuristic = 1e-1;
 		
