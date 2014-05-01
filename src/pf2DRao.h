@@ -33,6 +33,7 @@ class my_gmm
 		void resetTracker(int d);
 		std::vector<cv::Mat> mean;
 		std::vector<double> weight;
+		std::vector<double> KFweight;
 		std::vector<KF_model> KFtracker;
 		std::vector<state_params> tracks;
 		cv::Mat Sigma_a;

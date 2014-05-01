@@ -25,6 +25,7 @@ my_gmm::~my_gmm()
 void my_gmm::resetTracker(int d)
 {
 	tracks.clear();
+	KFweight.clear();
 	for (int i = 0; i < nParticles; i++)
 	{
 		state_params temp;
@@ -40,8 +41,9 @@ void my_gmm::resetTracker(int d)
 		//}
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
-		setIdentity(temp.cov, Scalar::all(45));
+		setIdentity(temp.cov, Scalar::all(10000));
 		tracks.push_back(temp);
+		KFweight.push_back(1/nParticles);
 	}
 }
 
@@ -157,31 +159,24 @@ void ParticleFilter::update(cv::Mat measurement)
 {
 	// Propose indicators
 	
-	std::vector<int> indicators = resample(gmm.weight, gmm.nParticles);
-	std::vector<double> weights;
+	for (int i = 0; i < (int)gmm.KFtracker.size(); i++)
+	{
+		gmm.KFweight[i] = (gmm.KFweight[i] + 5e-2)/(wsum+(int)gmm.KFweight.size()*5e-2);
+	}
+	
 	wsum = 0;
 	int i;
-	std::vector<state_params> temp;
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
 	{
-		i = indicators[j];
+		i = j;
 		gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov);
-		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
-		wsum = wsum + weights[j];
+		gmm.KFweight[i] = gmm.KFweight[i]*mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R)*gmm.weight[i];
+		wsum = wsum + gmm.KFweight[i];
 		gmm.KFtracker[i].update(measurement,gmm.tracks[j].state,gmm.tracks[j].cov);
-		temp.push_back(gmm.tracks[j]);
 	}
 	for (int i = 0; i < (int)gmm.tracks.size(); i++)
 	{
-		weights[i] = weights[i]/wsum;
-	}
-		
-	// Re-sample tracks
-	indicators.clear();
-	indicators = resample(weights, gmm.nParticles);
-	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
-	{
-		gmm.tracks[j] = temp[indicators[j]];
+		gmm.KFweight[i] = gmm.KFweight[i]/wsum;
 	}
 	wsum = 1.0;
 }

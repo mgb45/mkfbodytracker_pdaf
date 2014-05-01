@@ -45,8 +45,8 @@ PFTracker::PFTracker()
     fs2.release();
     
     d = m1_pca.cols;
-	pf1 = new ParticleFilter(d,means1.cols,100); // left arm pf
-	pf2 = new ParticleFilter(d,means2.cols,100); // right arm pf
+	pf1 = new ParticleFilter(d,means1.cols,15); // left arm pf
+	pf2 = new ParticleFilter(d,means2.cols,15); // right arm pf
    
 	for (int i = 0; i < means1.rows; i++)
 	{
@@ -348,7 +348,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 			pf1->gmm.resetTracker(h1_pca.rows);
 			pf2->gmm.resetTracker(h2_pca.rows);
 			swap = !swap;
-			edge_heuristic = 1e-1;
+			edge_heuristic = 2e-1;
 			circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
 			circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
 			circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
