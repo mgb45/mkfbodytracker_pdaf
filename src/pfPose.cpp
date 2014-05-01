@@ -20,9 +20,9 @@ PFTracker::PFTracker()
 	
 	// Load Kinect GMM priors
 	std::stringstream ss1;
-	ss1 << ros::package::getPath("handBlobTracker") << "/data13D.yml";
+	ss1 << ros::package::getPath("pfBodyTracker") << "/data13D_PCA.yml";
 	std::stringstream ss2;
-	ss2 << ros::package::getPath("handBlobTracker") << "/data23D.yml";
+	ss2 << ros::package::getPath("pfBodyTracker") << "/data23D_PCA.yml";
 	cv::FileStorage fs1(ss1.str(), FileStorage::READ);
 	cv::FileStorage fs2(ss2.str(), FileStorage::READ);
 	
@@ -33,17 +33,25 @@ PFTracker::PFTracker()
 	fs2["covs"] >> covs2;
 	fs1["weights"] >> weights1;
     fs2["weights"] >> weights2;
+    fs1["pca_proj"] >> h1_pca;
+    h1_pca.convertTo(h1_pca, CV_64F);
+    fs2["pca_proj"] >> h2_pca;
+    h2_pca.convertTo(h2_pca, CV_64F);
+    fs1["pca_mean"] >> m1_pca;
+    m1_pca.convertTo(m1_pca, CV_64F);
+    fs2["pca_mean"] >> m2_pca;
+    m2_pca.convertTo(m2_pca, CV_64F);
     fs1.release();
     fs2.release();
     
-    d = covs1.cols;
-	pf1 = new ParticleFilter(d,100); // left arm pf
-	pf2 = new ParticleFilter(d,100); // right arm pf
+    d = m1_pca.cols;
+	pf1 = new ParticleFilter(d,means1.cols,100); // left arm pf
+	pf2 = new ParticleFilter(d,means2.cols,100); // right arm pf
    
 	for (int i = 0; i < means1.rows; i++)
 	{
-		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)),weights1.at<double>(0,i));
-		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),weights2.at<double>(0,i));
+		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)), h1_pca, m1_pca, weights1.at<double>(0,i));
+		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)), h2_pca, m2_pca, weights2.at<double>(0,i));
 	}
 	
 	swap = false;
@@ -241,8 +249,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		measurement2.at<double>(5,0) = msg->measurements[3].y;
 		pf2->update(measurement2); // particle filter measurement right arm
 	
-		cv::Mat e1 = pf1->getEstimator(); // Weighted average pose estimate
-		cv::Mat e2 = pf2->getEstimator();
+		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
+		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
 		
 		cv::Mat p3D1 = get3Dpose(e1);
 		cv::Mat p3D2 = get3Dpose(e2);
@@ -337,8 +345,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		if (!val) // Reset trackers if tracking failure
 		{
 			ROS_DEBUG("Resetting trackers");
-			pf1->gmm.resetTracker(d);
-			pf2->gmm.resetTracker(d);
+			pf1->gmm.resetTracker(h1_pca.rows);
+			pf2->gmm.resetTracker(h2_pca.rows);
 			swap = !swap;
 			edge_heuristic = 1e-1;
 			circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
@@ -376,8 +384,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 	else
 	{
 		ROS_DEBUG("Resetting trackers");
-		pf1->gmm.resetTracker(d);
-		pf2->gmm.resetTracker(d);
+		pf1->gmm.resetTracker(h1_pca.rows);
+		pf2->gmm.resetTracker(h2_pca.rows);
 		swap = false;
 		edge_heuristic = 1e-1;
 		

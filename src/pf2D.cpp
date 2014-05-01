@@ -208,6 +208,7 @@ void ParticleFilter::update(cv::Mat measurement)
 	start_time = end_time;
 	printf("Predict: %f seconds\n", time1);
 }
+
 // Return best weight
 double ParticleFilter::maxWeight()
 {

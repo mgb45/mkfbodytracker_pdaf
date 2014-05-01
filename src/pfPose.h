@@ -51,6 +51,7 @@ class PFTracker
 		cv::Mat associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg);
 		bool edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3);
 		
+		cv::Mat m1_pca, m2_pca, h1_pca, h2_pca;
 		double edge_heuristic;
 		bool swap;
 		int d;

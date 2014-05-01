@@ -19,7 +19,7 @@ class KF_model
 	public:
 		KF_model();
 		~KF_model();
-		cv::Mat Q, R, F, B, H;
+		cv::Mat Q, R, F, B, H, BH;
 		void predict(cv::Mat &state, cv::Mat &cov);
 		void update(cv::Mat measurement, cv::Mat &state, cv::Mat &cov);
 };
@@ -29,7 +29,7 @@ class my_gmm
 	public:
 		my_gmm();
 		~my_gmm();
-		void loadGaussian(cv::Mat mean, cv::Mat sigma, double weight);
+		void loadGaussian(cv::Mat mean, cv::Mat sigma, cv::Mat &H, cv::Mat &m, double weight);
 		void resetTracker(int d);
 		std::vector<cv::Mat> mean;
 		std::vector<double> weight;
@@ -42,7 +42,7 @@ class my_gmm
 class ParticleFilter
 {
 	public:
-		ParticleFilter(int states, int nParticles);
+		ParticleFilter(int states, int red_states, int nParticles);
 		~ParticleFilter();		
 		void update(cv::Mat measurement);
 		cv::Mat getEstimator();

@@ -30,14 +30,14 @@ void my_gmm::resetTracker(int d)
 		state_params temp;
 		temp.state = cv::Mat::zeros(d,1,CV_64F);
 		randu(temp.state,1,480);
-		for (int j = 2; j < d-6; j+=2)
-		{
-			randn(temp.state.row(j),3,5);
-		}
-		for (int j = d-6; j < d; j++)
-		{
-			randn(temp.state.row(j),0,5);
-		}
+		//for (int j = 2; j < d-6; j+=2)
+		//{
+			//randn(temp.state.row(j),3,5);
+		//}
+		//for (int j = d-6; j < d; j++)
+		//{
+			//randn(temp.state.row(j),0,5);
+		//}
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
 		setIdentity(temp.cov, Scalar::all(45));
@@ -46,7 +46,7 @@ void my_gmm::resetTracker(int d)
 }
 
 // Load a gaussian for gmm with mean, sigma and weight		
-void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
+void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w)
 {
 	mean.push_back(u);
 	cv::Mat temp;
@@ -54,21 +54,26 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 	weight.push_back(w);
 	
 	KF_model tracker;
+	
+	cv::Mat sigma_a = H*Sigma_a*H.t();
 		
-	cv::invert(Sigma_a.inv() + temp, tracker.Q, DECOMP_LU);
+	cv::invert(sigma_a.inv() + temp, tracker.Q, DECOMP_LU);
 	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
 	
-	tracker.F = tracker.Q*Sigma_a.inv();
+	tracker.F = tracker.Q*sigma_a.inv();
 	
 	tracker.B = tracker.Q*temp*u.t();
 
-	tracker.H = cv::Mat::zeros(6,s.cols, CV_64F);
-	tracker.H.at<double>(0,9) = 1;
-	tracker.H.at<double>(1,10) = 1;
-	tracker.H.at<double>(2,0) = 1;
-	tracker.H.at<double>(3,1) = 1;
-	tracker.H.at<double>(4,12) = 1;
-	tracker.H.at<double>(5,13) = 1;
+	cv::Mat H1 = cv::Mat::zeros(6,m.cols, CV_64F);
+	H1.at<double>(0,9) = 1;
+	H1.at<double>(1,10) = 1;
+	H1.at<double>(2,0) = 1;
+	H1.at<double>(3,1) = 1;
+	H1.at<double>(4,12) = 1;
+	H1.at<double>(5,13) = 1;
+	
+	tracker.H = H1*H.t();
+	tracker.BH = H1*m.t();
 	
 	KFtracker.push_back(tracker);
 }
@@ -89,7 +94,7 @@ void KF_model::predict(cv::Mat &state, cv::Mat &cov)
 
 void KF_model::update(cv::Mat measurement, cv::Mat &state, cv::Mat &cov)
 {
-	cv::Mat y = measurement - H*state;
+	cv::Mat y = measurement - (H*state + BH);
 	cv::Mat S = H*cov*H.t() + R;
 	cv::Mat K = cov*H.t()*S.inv();
 	
@@ -97,7 +102,7 @@ void KF_model::update(cv::Mat measurement, cv::Mat &state, cv::Mat &cov)
 	cov = (cv::Mat::eye(cov.rows,cov.cols,cov.type()) - K*H)*cov;
 }
 
-ParticleFilter::ParticleFilter(int states, int nParticles)
+ParticleFilter::ParticleFilter(int states, int red_states, int nParticles)
 {
 	cv::Mat Sigma_a = Mat::zeros(states, states, CV_64F);
 	setIdentity(Sigma_a, Scalar::all(5));
@@ -118,7 +123,7 @@ ParticleFilter::ParticleFilter(int states, int nParticles)
 	Sigma_a.at<double>(20,20) = 0.01;
 	gmm.Sigma_a = Sigma_a;
 	gmm.nParticles = nParticles;
-	gmm.resetTracker(states);
+	gmm.resetTracker(red_states);
 }
 
 ParticleFilter::~ParticleFilter()
@@ -161,12 +166,11 @@ void ParticleFilter::update(cv::Mat measurement)
 	{
 		i = indicators[j];
 		gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov);
-		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
+		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
 		wsum = wsum + weights[j];
 		gmm.KFtracker[i].update(measurement,gmm.tracks[j].state,gmm.tracks[j].cov);
 		temp.push_back(gmm.tracks[j]);
 	}
-		
 	for (int i = 0; i < (int)gmm.tracks.size(); i++)
 	{
 		weights[i] = weights[i]/wsum;
