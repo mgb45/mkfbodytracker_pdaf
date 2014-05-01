@@ -193,7 +193,7 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 	
 	edge_heuristic = 0.85*edge_heuristic+0.15*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
 	ROS_DEBUG("Forearm evidence: %f, r_upper: %f r_lower: %f l_upper: %f l_lower: %f.",edge_heuristic,e4,e1,e3,e2);	
-	if ((edge_heuristic < 0.08))
+	if ((edge_heuristic < 0.095))
 	{
 		ROS_WARN("Reset (line check fail): %f",edge_heuristic);
 		edge_heuristic = 1e-1;
@@ -335,7 +335,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		
 		// Edge-based sanity check on pose
 		cv::Mat edge_image = cv::Mat::zeros(image.rows,image.cols,CV_8UC3);
-		bool val = true;//edgePoseCorrection(image,rosHandsArr,edge_image);
+		bool val = edgePoseCorrection(image,rosHandsArr,edge_image);
 		//Publish edge correction results
 		cv_bridge::CvImage img_edge;
 		img_edge.header = immsg->header;
