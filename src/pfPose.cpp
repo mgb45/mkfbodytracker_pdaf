@@ -327,7 +327,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		
 		// Edge-based sanity check on pose
 		cv::Mat edge_image = cv::Mat::zeros(image.rows,image.cols,CV_8UC3);
-		bool val = true;//edgePoseCorrection(image,rosHandsArr,edge_image);
+		bool val = edgePoseCorrection(image,rosHandsArr,edge_image);
 		//Publish edge correction results
 		cv_bridge::CvImage img_edge;
 		img_edge.header = immsg->header;
