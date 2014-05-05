@@ -182,12 +182,12 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 		}
 	}
 	
-	edge_heuristic = 0.85*edge_heuristic+0.15*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
+	edge_heuristic = 0.95*edge_heuristic+0.05*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
 	ROS_DEBUG("Forearm evidence: %f, r_upper: %f r_lower: %f l_upper: %f l_lower: %f.",edge_heuristic,e4,e1,e3,e2);	
-	if ((edge_heuristic < 0.08))
+	if ((edge_heuristic < 0.090))
 	{
 		ROS_WARN("Reset (line check fail): %f",edge_heuristic);
-		edge_heuristic = 1e-1;
+		edge_heuristic = 2e-1;
 		value = false;
 	}
 	
@@ -339,7 +339,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 			pf1->gmm.resetTracker();
 			pf2->gmm.resetTracker();
 			swap = !swap;
-			edge_heuristic = 1e-1;
+			edge_heuristic = 2e-1;
 			circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
 			circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
 			circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
@@ -378,7 +378,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		pf1->gmm.resetTracker();
 		pf2->gmm.resetTracker();
 		swap = false;
-		edge_heuristic = 1e-1;
+		edge_heuristic = 2e-1;
 		
 		//Publish zeros
 		handBlobTracker::HFPose2D rosHands;
