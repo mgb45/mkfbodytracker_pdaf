@@ -77,12 +77,11 @@ for k = 1:3
     title(name{k})
     ylabel('Tracking error (mm)')
     xlabel('Sample')
-    legend('Left hand','Left elbow','Left shoulder','Right shoulder','Right elbow','Right hand','Neck','Head')
     axis([1 850,0 500]);
     grid on
-
-% 
 end
+legend('Left hand','Left elbow','Left shoulder','Right shoulder','Right elbow','Right hand','Neck','Head')
+
 figure;
 barwitherr(s,e)
 set(gca,'XTickLabel',{'Right hand', 'Right elbow', 'Right shoulder', 'Left shoulder', 'Left elbow','Left Hand','Neck','Head'})
