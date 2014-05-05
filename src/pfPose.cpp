@@ -191,9 +191,9 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 		}
 	}
 	
-	edge_heuristic = 0.85*edge_heuristic+0.15*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
+	edge_heuristic = 0.95*edge_heuristic+0.05*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
 	ROS_DEBUG("Forearm evidence: %f, r_upper: %f r_lower: %f l_upper: %f l_lower: %f.",edge_heuristic,e4,e1,e3,e2);	
-	if ((edge_heuristic < 0.1))
+	if ((edge_heuristic < 0.090))
 	{
 		ROS_WARN("Reset (line check fail): %f",edge_heuristic);
 		edge_heuristic = 2e-1;
