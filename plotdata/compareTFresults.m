@@ -4,16 +4,20 @@ clc
 
 % H LH   RH   LE        RE        RS     LS       N 8x3 = 24
 % 123 456 789 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+name = {'MKF, fixed', 'MKF, fixed + PCA','MKF'};
 figure;
-for k = 1:2
+for k = 1:3
     if (k==1)
         load ../camdata.txt
         load ../kinectdata.txt
-    else
+    elseif (k==2)
         load ../bin/camdata.txt
         load ../bin/kinectdata.txt
+    else
+        load ./camdata.txt
+        load ./kinectdata.txt
     end
-    bins = 20:length(camdata)-50;%[165:183 246:663 916:1149 1349:1829];
+    bins = 20:850;%[165:183 246:663 916:1149 1349:1829];
     % bins = [20:250 370:800];
 
     cam = zeros(length(bins),24);
@@ -51,7 +55,7 @@ for k = 1:2
 
     for j = 1:length(cam)
         b = reshape(cam(j,:),3,[])';
-        a = reshape(kinect{k}(j,:),3,[])';
+        a = reshape(kinect{1}(j,:),3,[])';
         [d,z,transform] = procrustes(a,b,'Scaling',false,'Reflection',false);
         for i = 1:8
             cam1{k}(j,3*i-2:3*i) = cam(j,3*i-2:3*i)*transform.T + transform.c(1,:);
@@ -59,17 +63,18 @@ for k = 1:2
     end
 
 
-    subplot(2,1,k)
+    subplot(3,1,k)
     hold on
     cc=hsv(8);
     for j = 1:8
-        err = 1000*sqrt((cam1{k}(:,3*j-2) - kinect{k}(:,3*j-2)).^2 + (cam1{k}(:,3*j-1) - kinect{k}(:,3*j-1)).^2 + (cam1{k}(:,3*j) - kinect{k}(:,3*j)).^2);
+        err = 1000*sqrt((cam1{k}(:,3*j-2) - kinect{1}(:,3*j-2)).^2 + (cam1{k}(:,3*j-1) - kinect{1}(:,3*j-1)).^2 + (cam1{k}(:,3*j) - kinect{1}(:,3*j)).^2);
         plot(err,'color',cc(j,:),'LineWidth',2);
         e(j,k) = mean(err);
         s(j,k) = std(err);
 
     end
     hold off;
+    title(name{k})
     ylabel('Tracking error (mm)')
     xlabel('Sample')
     legend('Left hand','Left elbow','Left shoulder','Right shoulder','Right elbow','Right hand','Neck','Head')
@@ -85,18 +90,17 @@ ylabel('Average tracking error (mm)')
 
 figure;
 T = 10;
-for j = (T+1):length(cam1{1})
-    for k = 1:2
-        cla;
+col = {'b','g','c'};
+for j = (T+1):length(cam1{3})
+    cla;
+    for k = 1:3
         hold on;
         for i = 1:5
-            line([cam1{1}(j,3*i-2) cam1{1}(j,3*(i+1)-2)],[cam1{1}(j,3*i-1) cam1{1}(j,3*(i+1)-1)],[cam1{1}(j,3*i) cam1{1}(j,3*(i+1))],'Color','b','LineWidth',4);
-            line([cam1{2}(j,3*i-2) cam1{2}(j,3*(i+1)-2)],[cam1{2}(j,3*i-1) cam1{2}(j,3*(i+1)-1)],[cam1{2}(j,3*i) cam1{2}(j,3*(i+1))],'Color','g','LineWidth',4);
-            line([kinect{k}(j,3*i-2) kinect{k}(j,3*(i+1)-2)],[kinect{k}(j,3*i-1) kinect{k}(j,3*(i+1)-1)],[kinect{k}(j,3*i) kinect{k}(j,3*(i+1))],'Color','r','LineWidth',4);
+            line([cam1{k}(j,3*i-2) cam1{k}(j,3*(i+1)-2)],[cam1{k}(j,3*i-1) cam1{k}(j,3*(i+1)-1)],[cam1{k}(j,3*i) cam1{k}(j,3*(i+1))],'Color',col{k},'LineWidth',4);
+            line([kinect{1}(j,3*i-2) kinect{1}(j,3*(i+1)-2)],[kinect{1}(j,3*i-1) kinect{1}(j,3*(i+1)-1)],[kinect{1}(j,3*i) kinect{1}(j,3*(i+1))],'Color','r','LineWidth',4);
         end
-        line([cam1{1}(j,3*7-2) cam1{1}(j,3*(8)-2)],[cam1{1}(j,3*7-1) cam1{1}(j,3*(8)-1)],[cam1{1}(j,3*7) cam1{1}(j,3*(8))],'Color','b','LineWidth',4);
-        line([cam1{2}(j,3*7-2) cam1{2}(j,3*(8)-2)],[cam1{2}(j,3*7-1) cam1{2}(j,3*(8)-1)],[cam1{2}(j,3*7) cam1{2}(j,3*(8))],'Color','g','LineWidth',4);
-        line([kinect{k}(j,3*7-2) kinect{k}(j,3*(8)-2)],[kinect{k}(j,3*7-1) kinect{k}(j,3*(8)-1)],[kinect{k}(j,3*7) kinect{k}(j,3*(8))],'Color','r','LineWidth',4);
+        line([cam1{k}(j,3*7-2) cam1{k}(j,3*(8)-2)],[cam1{k}(j,3*7-1) cam1{k}(j,3*(8)-1)],[cam1{k}(j,3*7) cam1{k}(j,3*(8))],'Color',col{k},'LineWidth',4);
+        line([kinect{1}(j,3*7-2) kinect{1}(j,3*(8)-2)],[kinect{1}(j,3*7-1) kinect{1}(j,3*(8)-1)],[kinect{1}(j,3*7) kinect{1}(j,3*(8))],'Color','r','LineWidth',4);
         hold off;
         grid on;
         axis([-0.6 0.6,-0.8 0.2,-0.8 0.6])
