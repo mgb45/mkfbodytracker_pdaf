@@ -67,10 +67,10 @@ for k = 1:3
     hold on
     cc=hsv(8);
     for j = 1:8
-        err = 1000*sqrt((cam1{k}(:,3*j-2) - kinect{1}(:,3*j-2)).^2 + (cam1{k}(:,3*j-1) - kinect{1}(:,3*j-1)).^2 + (cam1{k}(:,3*j) - kinect{1}(:,3*j)).^2);
-        plot(err,'color',cc(j,:),'LineWidth',2);
-        e(j,k) = mean(err);
-        s(j,k) = std(err);
+        err{k} = 1000*sqrt((cam1{k}(:,3*j-2) - kinect{1}(:,3*j-2)).^2 + (cam1{k}(:,3*j-1) - kinect{1}(:,3*j-1)).^2 + (cam1{k}(:,3*j) - kinect{1}(:,3*j)).^2);
+        plot(err{k},'color',cc(j,:),'LineWidth',2);
+        e(j,k) = mean(err{k});
+        s(j,k) = std(err{k});
 
     end
     hold off;
@@ -91,6 +91,7 @@ figure;
 T = 10;
 col = {'b','g','c'};
 for j = (T+1):length(cam1{3})
+    subplot(1,2,1)
     cla;
     for k = 1:3
         hold on;
@@ -104,6 +105,13 @@ for j = (T+1):length(cam1{3})
         grid on;
         axis([-0.6 0.6,-0.8 0.2,-0.8 0.6])
     end
+    subplot(1,2,2)
+    cla;
+    hold all
+    for k = 1:3
+        plot(err{k}(j-T:j),'color',col{k})
+    end
+    axis([1 10,0 500])
     pause(0.01)
 end
 
