@@ -349,11 +349,11 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 			pf2->gmm.resetTracker(h2_pca.rows);
 			swap = !swap;
 			edge_heuristic = 2e-1;
-			circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
-			circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-			circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
+			//circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
+			//circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
+			//circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
 			//line(image, Point(msg->measurements[2].x-5,msg->measurements[2].y+20), Point(msg->measurements[2].x+5,msg->measurements[2].y+20), Scalar(0, 0, 0), 5, 8,0);
-			ellipse(image,Point(msg->measurements[2].x,msg->measurements[2].y+25), Size(20,15),0,-180,0, Scalar(0, 0, 0), 5, 8,0);
+			//ellipse(image,Point(msg->measurements[2].x,msg->measurements[2].y+25), Size(20,15),0,-180,0, Scalar(0, 0, 0), 5, 8,0);
 		}
 		else
 		{
@@ -365,9 +365,9 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 				line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
 				line(image, Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*(i+1)),e2.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
 			}
-			circle(image,Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)),50,Scalar(255, 255, 255), -5, 8,0);
-			circle(image,Point(e1.at<double>(0,3*(i+1))-10,e1.at<double>(0,3*(i+1)+1)-10),5,Scalar(0, 0, 0), -5, 8,0);
-			circle(image,Point(e1.at<double>(0,3*(i+1))+10,e1.at<double>(0,3*(i+1)+1)-10),5,Scalar(0, 0, 0), -5, 8,0);
+			//circle(image,Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)),50,Scalar(255, 255, 255), -5, 8,0);
+			//circle(image,Point(e1.at<double>(0,3*(i+1))-10,e1.at<double>(0,3*(i+1)+1)-10),5,Scalar(0, 0, 0), -5, 8,0);
+			//circle(image,Point(e1.at<double>(0,3*(i+1))+10,e1.at<double>(0,3*(i+1)+1)-10),5,Scalar(0, 0, 0), -5, 8,0);
 			line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Scalar(0, 255, 0), 5, 8,0);
 			line(image, Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Point(e1.at<double>(0,3*(i+2)),e1.at<double>(0,3*(i+2)+1)), Scalar(255, 0, 0), 5, 8,0);
 			
@@ -410,10 +410,10 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		rosHandsArr.header = msg->header;
 		rosHandsArr.id = "0";
 		hand_pub.publish(rosHandsArr);
-		circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
-		circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-		circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-		ellipse(image,Point(msg->measurements[2].x,msg->measurements[2].y+25), Size(20,15),0,-180,0, Scalar(0, 0, 0), 5, 8,0);
+		//circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
+		//circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
+		//circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
+		//ellipse(image,Point(msg->measurements[2].x,msg->measurements[2].y+25), Size(20,15),0,-180,0, Scalar(0, 0, 0), 5, 8,0);
 		//line(image, Point(msg->measurements[2].x-5,msg->measurements[2].y+20), Point(msg->measurements[2].x+5,msg->measurements[2].y+20), Scalar(0, 0, 0), 5, 8,0);
 	}
 
