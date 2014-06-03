@@ -37,8 +37,8 @@ PFTracker::PFTracker()
     fs2.release();
     
     d = covs1.cols;
-	pf1 = new ParticleFilter(d,100); // left arm pf
-	pf2 = new ParticleFilter(d,100); // right arm pf
+	pf1 = new ParticleFilter(d,20); // left arm pf
+	pf2 = new ParticleFilter(d,20); // right arm pf
    
 	for (int i = 0; i < means1.rows; i++)
 	{

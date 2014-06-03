@@ -158,9 +158,9 @@ void ParticleFilter::update(cv::Mat measurement)
 	std::vector<state_params> new_tracks;
 	state_params temp;
 	cv::Mat state, cov;
-	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
+	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track
 	{
-		for (int i = 0; i < (int)gmm.KFtracker.size(); i++) //update KF for each track using indicator samples
+		for (int i = 0; i < (int)gmm.KFtracker.size(); i++) //update each KF for each track 
 		{
 			gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov,temp.state,temp.cov);
 			temp.weight = mvnpdf(measurement,gmm.KFtracker[i].H*temp.state,gmm.KFtracker[i].H*temp.cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R)*gmm.weight[i];
@@ -182,7 +182,7 @@ void ParticleFilter::update(cv::Mat measurement)
 	// Re-sample tracks
 	//indicators.clear();
 	std::vector<int> indicators;
-	indicators = resampleStratified(weights, gmm.nParticles);
+	indicators = resample(weights, gmm.nParticles);
 	//ROS_INFO("Weights %d, KFs %d, particles %d, indicators %d.",(int)weights.size(),(int)gmm.KFtracker.size(),gmm.nParticles,(int)indicators.size());
 	div_t k;
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
@@ -266,3 +266,42 @@ std::vector<int> ParticleFilter::resampleStratified(std::vector<double> weights,
 	return indicators;
 }
 
+//// Ferhead optimal + stratified resampling
+//std::vector<int> ParticleFilter::resampleStratifiedFernhead(std::vector<double> weights, int N,std::vector<double> new_weights)
+//{
+	//std::vector<int> indicators;
+	//std::vector<double> remnants;
+	//std::vector<int> remnant_idx;
+	//for (int i = 0; i < (int)weights.size(); i++)
+	//{
+		//if (weights[i] >= 1.0/(double)N)
+		//{
+			//indicators.push_back(i);
+			//new_weights.push_back(weights[i]);
+		//}
+		//else
+		//{
+			//remnant_idx.push_back(i);
+			//remnants.push_back(weights[i]);
+		//}
+	//}
+	
+	//int L = N - (int)indicators.size();
+	//double wc[(int)remnants.size()];
+	//wc[0] = remnants[0];
+	//for (int j = 1; j < (int)remnants.size(); j++)
+	//{
+		//wc[j] = wc[j-1] + remnants[j];
+	//}
+	
+	//int k = 0;
+	//for (int i = 0; i < L; i++)
+	//{
+		//while (wc[k] < ((i-1)+((double)rand()/RAND_MAX))/(double)L)
+		//{
+			//k++;
+		//}
+		//indicators.push_back(remnant_idx[k]);
+	//}
+	//return indicators;
+//}
