@@ -81,20 +81,20 @@ KF_model::~KF_model()
 {
 }
 
-void KF_model::predict(cv::Mat &state, cv::Mat &cov)
+void KF_model::predict(cv::Mat state_in, cv::Mat cov_in, cv::Mat &state_out, cv::Mat &cov_out)
 {
-	state = F*state + B;
-	cov = F*cov*F.t() + Q;
+	state_out = F*state_in + B;
+	cov_out = F*cov_in*F.t() + Q;
 }
 
-void KF_model::update(cv::Mat measurement, cv::Mat &state, cv::Mat &cov)
+void KF_model::update(cv::Mat measurement, cv::Mat state_in, cv::Mat cov_in, cv::Mat &state_out, cv::Mat &cov_out)
 {
-	cv::Mat y = measurement - H*state;
-	cv::Mat S = H*cov*H.t() + R;
-	cv::Mat K = cov*H.t()*S.inv();
+	cv::Mat y = measurement - H*state_in;
+	cv::Mat S = H*cov_in*H.t() + R;
+	cv::Mat K = cov_in*H.t()*S.inv();
 	
-	state = state + K*y;
-	cov = (cv::Mat::eye(cov.rows,cov.cols,cov.type()) - K*H)*cov;
+	state_out = state_in + K*y;
+	cov_out = (cv::Mat::eye(cov_in.rows,cov_in.cols,cov_in.type()) - K*H)*cov_in;
 }
 
 ParticleFilter::ParticleFilter(int states, int nParticles)
@@ -152,32 +152,44 @@ void ParticleFilter::update(cv::Mat measurement)
 {
 	// Propose indicators
 	
-	std::vector<int> indicators = resample(gmm.weight, gmm.nParticles);
+	//std::vector<int> indicators = resampleStratified(gmm.weight, gmm.nParticles);
 	std::vector<double> weights;
 	wsum = 0;
-	int i;
-	std::vector<state_params> temp;
+	std::vector<state_params> new_tracks;
+	state_params temp;
+	cv::Mat state, cov;
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
 	{
-		i = indicators[j];
-		gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov);
-		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
-		wsum = wsum + weights[j];
-		gmm.KFtracker[i].update(measurement,gmm.tracks[j].state,gmm.tracks[j].cov);
-		temp.push_back(gmm.tracks[j]);
+		for (int i = 0; i < (int)gmm.KFtracker.size(); i++) //update KF for each track using indicator samples
+		{
+			gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov,temp.state,temp.cov);
+			temp.weight = mvnpdf(measurement,gmm.KFtracker[i].H*temp.state,gmm.KFtracker[i].H*temp.cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R)*gmm.weight[i];
+			weights.push_back(temp.weight);
+			new_tracks.push_back(temp);
+			wsum = wsum + temp.weight;
+		}
 	}
 		
-	for (int i = 0; i < (int)gmm.tracks.size(); i++)
+	double Neff = 0;;
+	for (int i = 0; i < (int)weights.size(); i++)
 	{
 		weights[i] = weights[i]/wsum;
+		Neff = Neff + weights[i]*weights[i];
 	}
+	Neff = 1.0/Neff;
+	ROS_INFO("Effective particle num: %f",Neff);
 		
 	// Re-sample tracks
-	indicators.clear();
-	indicators = resample(weights, gmm.nParticles);
+	//indicators.clear();
+	std::vector<int> indicators;
+	indicators = resampleStratified(weights, gmm.nParticles);
+	//ROS_INFO("Weights %d, KFs %d, particles %d, indicators %d.",(int)weights.size(),(int)gmm.KFtracker.size(),gmm.nParticles,(int)indicators.size());
+	div_t k;
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
 	{
-		gmm.tracks[j] = temp[indicators[j]];
+		k = div(indicators[j], (int)gmm.KFtracker.size());
+		//ROS_INFO("%d / %d = %d rem %d", indicators[j],(int)gmm.KFtracker.size(),k.quot,k.rem);
+		gmm.KFtracker[k.rem].update(measurement,new_tracks[indicators[j]].state,new_tracks[indicators[j]].cov,gmm.tracks[j].state,gmm.tracks[j].cov);
 	}
 	wsum = 1.0;
 }
@@ -222,7 +234,7 @@ std::vector<int> ParticleFilter::resample(std::vector<double> weights, int N)
 			while (beta > weights[idx])
 			{
 				beta -= weights[idx];
-				idx = (idx + 1) % N;
+				idx = (idx + 1) % (int)weights.size();
 			}
 			beta += step;
 			indicators.push_back(idx);
@@ -230,3 +242,27 @@ std::vector<int> ParticleFilter::resample(std::vector<double> weights, int N)
 	}
 	return indicators;
 }
+
+// Stratified resampling
+std::vector<int> ParticleFilter::resampleStratified(std::vector<double> weights, int N)
+{
+	std::vector<int> indicators;
+	double wc[(int)weights.size()];
+	wc[0] = weights[0];
+	for (int j = 1; j < (int)weights.size(); j++)
+	{
+		wc[j] = wc[j-1] + weights[j];
+	}
+	
+	int k = 0;
+	for (int i = 0; i < N; i++)
+	{
+		while (wc[k] < ((i-1)+((double)rand()/RAND_MAX))/(double)N)
+		{
+			k++;
+		}
+		indicators.push_back(k);
+	}
+	return indicators;
+}
+

@@ -46,8 +46,8 @@ PFTracker::PFTracker()
 		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),0.5*weights2.at<double>(0,i));
 	}
 	////Load regularising gaussians - default constant velocity KF
-	pf2->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),1e190*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 0.5);
-	pf1->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),1e190*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 0.5);
+	//pf2->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),1e190*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 0.5);
+	//pf1->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),1e190*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 0.5);
 	
 	swap = false;
 	edge_heuristic = 1e-1;
