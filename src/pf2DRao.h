@@ -52,6 +52,7 @@ class ParticleFilter
 		double wsum;
 		std::vector<int> resample(std::vector<double> weights, int N);
 		std::vector<int> resampleStratified(std::vector<double> weights, int N);
+		std::vector<int> resampleStratifiedFernhead(std::vector<double> weights, int N,std::vector<double> &new_weights);
 		double maxWeight(std::vector<double> weights);
 };
 

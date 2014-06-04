@@ -163,33 +163,35 @@ void ParticleFilter::update(cv::Mat measurement)
 		for (int i = 0; i < (int)gmm.KFtracker.size(); i++) //update each KF for each track 
 		{
 			gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov,temp.state,temp.cov);
-			temp.weight = mvnpdf(measurement,gmm.KFtracker[i].H*temp.state,gmm.KFtracker[i].H*temp.cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R)*gmm.weight[i];
+			temp.weight = mvnpdf(measurement,gmm.KFtracker[i].H*temp.state,gmm.KFtracker[i].H*temp.cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R)*gmm.weight[i]*gmm.tracks[j].weight;
 			weights.push_back(temp.weight);
 			new_tracks.push_back(temp);
 			wsum = wsum + temp.weight;
 		}
 	}
 		
-	double Neff = 0;;
+	//double Neff = 0;;
 	for (int i = 0; i < (int)weights.size(); i++)
 	{
 		weights[i] = weights[i]/wsum;
-		Neff = Neff + weights[i]*weights[i];
+		//Neff = Neff + weights[i]*weights[i];
 	}
-	Neff = 1.0/Neff;
-	ROS_INFO("Effective particle num: %f",Neff);
+	//Neff = 1.0/Neff;
+	//ROS_INFO("Effective particle num: %f",Neff);
 		
 	// Re-sample tracks
 	//indicators.clear();
 	std::vector<int> indicators;
-	indicators = resample(weights, gmm.nParticles);
+	std::vector<double> new_weights;
+	//indicators = resample(weights, gmm.nParticles);
+	indicators = resampleStratifiedFernhead(weights, gmm.nParticles,new_weights);
 	//ROS_INFO("Weights %d, KFs %d, particles %d, indicators %d.",(int)weights.size(),(int)gmm.KFtracker.size(),gmm.nParticles,(int)indicators.size());
 	div_t k;
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
 	{
 		k = div(indicators[j], (int)gmm.KFtracker.size());
-		//ROS_INFO("%d / %d = %d rem %d", indicators[j],(int)gmm.KFtracker.size(),k.quot,k.rem);
 		gmm.KFtracker[k.rem].update(measurement,new_tracks[indicators[j]].state,new_tracks[indicators[j]].cov,gmm.tracks[j].state,gmm.tracks[j].cov);
+		gmm.tracks[j].weight = new_weights[j];
 	}
 	wsum = 1.0;
 }
@@ -257,7 +259,7 @@ std::vector<int> ParticleFilter::resampleStratified(std::vector<double> weights,
 	int k = 0;
 	for (int i = 0; i < N; i++)
 	{
-		while (wc[k] < ((i-1)+((double)rand()/RAND_MAX))/(double)N)
+		while (wc[k]/wc[(int)weights.size()-1] < ((i-1)+((double)rand()/RAND_MAX))/(double)N)
 		{
 			k++;
 		}
@@ -266,42 +268,50 @@ std::vector<int> ParticleFilter::resampleStratified(std::vector<double> weights,
 	return indicators;
 }
 
-//// Ferhead optimal + stratified resampling
-//std::vector<int> ParticleFilter::resampleStratifiedFernhead(std::vector<double> weights, int N,std::vector<double> new_weights)
-//{
-	//std::vector<int> indicators;
-	//std::vector<double> remnants;
-	//std::vector<int> remnant_idx;
-	//for (int i = 0; i < (int)weights.size(); i++)
-	//{
-		//if (weights[i] >= 1.0/(double)N)
-		//{
-			//indicators.push_back(i);
-			//new_weights.push_back(weights[i]);
-		//}
-		//else
-		//{
-			//remnant_idx.push_back(i);
-			//remnants.push_back(weights[i]);
-		//}
-	//}
+// Ferhead optimal + stratified resampling
+std::vector<int> ParticleFilter::resampleStratifiedFernhead(std::vector<double> weights, int N,std::vector<double> &new_weights)
+{
+	// Solve for c roots of [sum(min(c*weight,1)) = N]
+	std::vector<double> sw = weights;
+	std::sort(sw.begin(),sw.end());
+	double c = -DBL_MAX,temp_c = 0, wcs = 0;
+	for (int j = 0; j < (int)sw.size(); j++)
+	{
+		wcs = wcs + sw[j];
+		temp_c = ((double)N - ((double)sw.size()-(double)(j+1)))/wcs;
+		if (temp_c > c)
+		{
+			c = temp_c;
+		}
+	}
+		
+	// Retain all particles with weight > 1/c
+	std::vector<int> indicators;
+	std::vector<double> remnants;
+	std::vector<int> remnant_idx;
+	for (int i = 0; i < (int)weights.size(); i++)
+	{
+		if (weights[i] >= 1.0/c)
+		{
+			indicators.push_back(i);
+			new_weights.push_back(weights[i]);
+		}
+		else
+		{
+			remnant_idx.push_back(i);
+			remnants.push_back(weights[i]);
+		}
+	}
 	
-	//int L = N - (int)indicators.size();
-	//double wc[(int)remnants.size()];
-	//wc[0] = remnants[0];
-	//for (int j = 1; j < (int)remnants.size(); j++)
-	//{
-		//wc[j] = wc[j-1] + remnants[j];
-	//}
+	// Perform stratified sampling on remaining weights
+	int L = N - (int)indicators.size();
+	//~ ROS_WARN("%f %f, %d %d",c,temp_c,L,(int)remnants.size());
+	std::vector<int> ind2 = resampleStratified(remnants, L);
+	for (int j = 0; j < L; j++)
+	{
+		indicators.push_back(remnant_idx[ind2[j]]);
+		new_weights.push_back(1.0/c);
+	}
 	
-	//int k = 0;
-	//for (int i = 0; i < L; i++)
-	//{
-		//while (wc[k] < ((i-1)+((double)rand()/RAND_MAX))/(double)L)
-		//{
-			//k++;
-		//}
-		//indicators.push_back(remnant_idx[k]);
-	//}
-	//return indicators;
-//}
+	return indicators;
+}
