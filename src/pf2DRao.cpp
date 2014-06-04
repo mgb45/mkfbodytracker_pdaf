@@ -40,7 +40,7 @@ void my_gmm::resetTracker(int d)
 		}
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
-		setIdentity(temp.cov, Scalar::all(45));
+		setIdentity(temp.cov, Scalar::all(4500));
 		tracks.push_back(temp);
 	}
 }
@@ -56,7 +56,7 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 	KF_model tracker;
 		
 	cv::invert(Sigma_a.inv() + temp, tracker.Q, DECOMP_LU);
-	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
+	tracker.R = 0.05*cv::Mat::eye(6,6, CV_64F);
 	
 	tracker.F = tracker.Q*Sigma_a.inv();
 	
@@ -101,18 +101,18 @@ ParticleFilter::ParticleFilter(int states, int nParticles)
 {
 	cv::Mat Sigma_a = Mat::zeros(states, states, CV_64F);
 	setIdentity(Sigma_a, Scalar::all(5));
-	Sigma_a.at<double>(0,0) = 50;
-	Sigma_a.at<double>(1,1) = 50;
+	Sigma_a.at<double>(0,0) = 5600;
+	Sigma_a.at<double>(1,1) = 5600;
 	Sigma_a.at<double>(2,2) = 1;
-	Sigma_a.at<double>(3,3) = 5;
-	Sigma_a.at<double>(4,4) = 5;
-	Sigma_a.at<double>(5,5) = 1;
-	Sigma_a.at<double>(8,8) = 1;
-	Sigma_a.at<double>(11,11) = 1;
-	Sigma_a.at<double>(14,14) = 1;
-	Sigma_a.at<double>(15,15) = 0.5;
-	Sigma_a.at<double>(16,16) = 0.5;
-	Sigma_a.at<double>(17,17) = 0.5;
+	Sigma_a.at<double>(3,3) = 560;
+	Sigma_a.at<double>(4,4) = 560;
+	Sigma_a.at<double>(5,5) = 0.1;
+	Sigma_a.at<double>(8,8) = 0.1;
+	Sigma_a.at<double>(11,11) = 0.1;
+	Sigma_a.at<double>(14,14) = 0.1;
+	Sigma_a.at<double>(15,15) = 0.09;
+	Sigma_a.at<double>(16,16) = 0.09;
+	Sigma_a.at<double>(17,17) = 0.09;
 	Sigma_a.at<double>(18,18) = 0.01;
 	Sigma_a.at<double>(19,19) = 0.01;
 	Sigma_a.at<double>(20,20) = 0.01;
