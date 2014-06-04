@@ -56,7 +56,7 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 	KF_model tracker;
 		
 	cv::invert(Sigma_a.inv() + temp, tracker.Q, DECOMP_LU);
-	tracker.R = 0.05*cv::Mat::eye(6,6, CV_64F);
+	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
 	
 	tracker.F = tracker.Q*Sigma_a.inv();
 	
