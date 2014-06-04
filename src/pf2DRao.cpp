@@ -131,7 +131,7 @@ cv::Mat ParticleFilter::getEstimator()
 	cv::Mat estimate;
 	for (int i = 0;  i < gmm.nParticles; i++)
 	{
-		estimate = estimate + 1.0/(double)gmm.nParticles*gmm.tracks[i].state;
+		estimate = estimate + gmm.tracks[i].weight*gmm.tracks[i].state;
 	}
 	return estimate;
 }
