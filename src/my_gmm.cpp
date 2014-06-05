@@ -54,18 +54,16 @@ void my_gmm::resetTracker(int d)
 void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 {
 	mean.push_back(u);
-	cv::Mat temp;
-	cv::invert(s,temp,cv::DECOMP_CHOLESKY);
 	weight.push_back(w);
 	
 	KF_model tracker;
-		
-	cv::invert(Sigma_a.inv() + temp, tracker.Q, cv::DECOMP_LU);
+	
+	tracker.Q = (1-w*w)*s;
 	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
 	
-	tracker.F = tracker.Q*Sigma_a.inv();
-	
-	tracker.B = tracker.Q*temp*u.t();
+	tracker.F = w*cv::Mat::eye(s.cols,s.cols, CV_64F);
+		
+	tracker.B = (1.0 - w)*u.t();
 
 	tracker.H = cv::Mat::zeros(6,s.cols, CV_64F);
 	tracker.H.at<double>(0,9) = 1;
