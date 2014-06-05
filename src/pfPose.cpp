@@ -42,12 +42,12 @@ PFTracker::PFTracker()
    
 	for (int i = 0; i < means1.rows; i++)
 	{
-		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)),0.5*weights1.at<double>(0,i));
-		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),0.5*weights2.at<double>(0,i));
+		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)),1*weights1.at<double>(0,i));
+		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),1*weights2.at<double>(0,i));
 	}
 	////Load regularising gaussians - default constant velocity KF
-	pf2->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),1e190*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 0.5);
-	pf1->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),1e190*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 0.5);
+	//pf2->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),0.5*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 1);
+	//pf1->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),0.5*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 1);
 	
 	swap = false;
 	edge_heuristic = 1e-1;
