@@ -24,6 +24,7 @@
 #include "handBlobTracker/HFPose2D.h"
 #include "handBlobTracker/HFPose2DArray.h"
 #include <tf/transform_broadcaster.h>
+#include "my_gmm.h"
 
 class PFTracker
 {
