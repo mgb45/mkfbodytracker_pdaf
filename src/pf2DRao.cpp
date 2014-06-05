@@ -38,8 +38,8 @@ void my_gmm::resetTracker()
 void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 {
 	mean.push_back(u);
-	cv::Mat temp;
-	invert(s,temp,DECOMP_CHOLESKY);
+	//cv::Mat temp;
+	//invert(s,temp,DECOMP_CHOLESKY);
 	weight.push_back(w);
 	
 	cv::KalmanFilter tracker;
@@ -51,13 +51,15 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
 	setIdentity(tracker.errorCovPost, Scalar::all(500));
 	setIdentity(tracker.errorCovPre, Scalar::all(500));
 	
-	cv::invert(Sigma_a.inv() + temp, tracker.processNoiseCov, DECOMP_LU);
+	//cv::invert(Sigma_a.inv() + temp, tracker.processNoiseCov, DECOMP_LU);
+	tracker.processNoiseCov = (1-w*w)*s;
 	setIdentity(tracker.measurementNoiseCov, Scalar::all(5));
 	
-	tracker.transitionMatrix = tracker.processNoiseCov*Sigma_a.inv();
+	//tracker.transitionMatrix = tracker.processNoiseCov*Sigma_a.inv();
+	setIdentity(tracker.transitionMatrix, Scalar::all(w));
 	
-	cv::invert((Sigma_a.inv() + temp), tracker.controlMatrix, DECOMP_LU);
-	tracker.controlMatrix = tracker.controlMatrix*temp;
+	//cv::invert((Sigma_a.inv() + temp), tracker.controlMatrix, DECOMP_LU);
+	tracker.controlMatrix = (1 - w)*cv::Mat::eye(s.cols, s.cols, CV_64F);//tracker.controlMatrix*temp;
 
 	tracker.measurementMatrix = cv::Mat::zeros(6,s.cols, CV_64F);
 	tracker.measurementMatrix.at<double>(0,9) = 1;
