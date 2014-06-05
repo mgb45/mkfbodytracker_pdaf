@@ -1,13 +1,13 @@
 <package>
-  <description brief="pfBodyTracker">
+  <description brief="mkfBodyTracker">
 
-     pfBodyTracker
+     mkfBodyTracker
 
   </description>
   <author>michael</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/pfBodyTracker</url>
+  <url>http://ros.org/wiki/mkfBodyTracker</url>
   <depend package="roscpp"/>
   <depend package="opencv2"/>
   <depend package="roscpp"/>
