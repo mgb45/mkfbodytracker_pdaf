@@ -31,14 +31,6 @@ void my_gmm::resetTracker(int d)
 		state_params temp;
 		temp.state = cv::Mat::zeros(d,1,CV_64F);
 		randu(temp.state,1,480);
-		//for (int j = 2; j < d-6; j+=2)
-		//{
-			//randn(temp.state.row(j),3,5);
-		//}
-		//for (int j = d-6; j < d; j++)
-		//{
-			//randn(temp.state.row(j),0,5);
-		//}
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
 		setIdentity(temp.cov, Scalar::all(10000));
@@ -51,20 +43,16 @@ void my_gmm::resetTracker(int d)
 void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w)
 {
 	mean.push_back(u);
-	cv::Mat temp;
-	invert(s,temp,DECOMP_CHOLESKY);
 	weight.push_back(w);
 	
 	KF_model tracker;
 	
-	cv::Mat sigma_a = H*Sigma_a*H.t();
-		
-	cv::invert(sigma_a.inv() + temp, tracker.Q, DECOMP_LU);
+	tracker.Q = (1-w*w)*s;
 	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
 	
-	tracker.F = tracker.Q*sigma_a.inv();
-	
-	tracker.B = tracker.Q*temp*u.t();
+	tracker.F = w*cv::Mat::eye(s.cols,s.cols, CV_64F);
+		
+	tracker.B = (1.0 - w)*u.t();
 
 	cv::Mat H1 = cv::Mat::zeros(6,m.cols, CV_64F);
 	H1.at<double>(0,9) = 1;
@@ -106,24 +94,24 @@ void KF_model::update(cv::Mat measurement, cv::Mat &state, cv::Mat &cov)
 
 ParticleFilter::ParticleFilter(int states, int red_states, int nParticles)
 {
-	cv::Mat Sigma_a = Mat::zeros(states, states, CV_64F);
-	setIdentity(Sigma_a, Scalar::all(5));
-	Sigma_a.at<double>(0,0) = 50;
-	Sigma_a.at<double>(1,1) = 50;
-	Sigma_a.at<double>(2,2) = 1;
-	Sigma_a.at<double>(3,3) = 5;
-	Sigma_a.at<double>(4,4) = 5;
-	Sigma_a.at<double>(5,5) = 1;
-	Sigma_a.at<double>(8,8) = 1;
-	Sigma_a.at<double>(11,11) = 1;
-	Sigma_a.at<double>(14,14) = 1;
-	Sigma_a.at<double>(15,15) = 0.5;
-	Sigma_a.at<double>(16,16) = 0.5;
-	Sigma_a.at<double>(17,17) = 0.5;
-	Sigma_a.at<double>(18,18) = 0.01;
-	Sigma_a.at<double>(19,19) = 0.01;
-	Sigma_a.at<double>(20,20) = 0.01;
-	gmm.Sigma_a = Sigma_a;
+	//cv::Mat Sigma_a = Mat::zeros(states, states, CV_64F);
+	//setIdentity(Sigma_a, Scalar::all(5));
+	//Sigma_a.at<double>(0,0) = 50;
+	//Sigma_a.at<double>(1,1) = 50;
+	//Sigma_a.at<double>(2,2) = 1;
+	//Sigma_a.at<double>(3,3) = 5;
+	//Sigma_a.at<double>(4,4) = 5;
+	//Sigma_a.at<double>(5,5) = 1;
+	//Sigma_a.at<double>(8,8) = 1;
+	//Sigma_a.at<double>(11,11) = 1;
+	//Sigma_a.at<double>(14,14) = 1;
+	//Sigma_a.at<double>(15,15) = 0.5;
+	//Sigma_a.at<double>(16,16) = 0.5;
+	//Sigma_a.at<double>(17,17) = 0.5;
+	//Sigma_a.at<double>(18,18) = 0.01;
+	//Sigma_a.at<double>(19,19) = 0.01;
+	//Sigma_a.at<double>(20,20) = 0.01;
+	//gmm.Sigma_a = Sigma_a;
 	gmm.nParticles = nParticles;
 	gmm.resetTracker(red_states);
 }
