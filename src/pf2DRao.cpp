@@ -38,21 +38,26 @@ double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
 	cv::Mat sigma_i;
 	invert(sigma,sigma_i,DECOMP_CHOLESKY);
-	cv::Mat x_u(x.size(),x.type());
-	x_u = x - u;
-	cv::Mat temp = -0.5*x_u.t()*sigma_i*x_u;
-	return 1.0/(pow(2.0*M_PI,sigma.rows/2.0)*sqrt(cv::determinant(sigma)))*exp(temp.at<double>(0,0));
+	cv::Mat x_u = (x - u).t()*sigma_i;
+	cv::Mat temp;
+	cv::log(sigma_i.diag(0),temp);
+	double logSqrtDetSigma = cv::sum(temp)[0];
+	cv::pow(x_u,2,temp);
+	double quadform = cv::sum(x_u)[0];
+	return (exp(-0.5*quadform - logSqrtDetSigma - x.rows*log(2*M_PI)/2));;
 }
 
 // Update stage
 void ParticleFilter::update(cv::Mat measurement)
 {
+	ros::Time t1,t2,t3,t4;
+	
+	t1 = ros::Time::now();
 	std::vector<double> weights;
 	wsum = 0;
 	std::vector<state_params> new_tracks;
 	state_params temp;
-	cv::Mat state, cov;
-
+	
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track
 	{
 		for (int i = 0; i < (int)gmm.KFtracker.size(); i++) //update each KF for each track 
@@ -64,16 +69,15 @@ void ParticleFilter::update(cv::Mat measurement)
 			weights.push_back(temp.weight);
 		}
 	}
+	t2 = ros::Time::now();
 	
-	//double Neff = 0;;
 	for (int i = 0; i < (int)weights.size(); i++)
 	{
 		weights[i] = weights[i]/wsum;
-		//////Neff = Neff + weights[i]*weights[i];
 	}
 	wsum = 1.0;
-	//Neff = 1.0/Neff;
-	//ROS_INFO("Effective particle num: %f",Neff);
+	
+	t3 = ros::Time::now();
 		
 	// Re-sample tracks
 	std::vector<int> indicators;
@@ -88,6 +92,9 @@ void ParticleFilter::update(cv::Mat measurement)
 		gmm.KFtracker[k.rem].update(measurement,new_tracks[indicators[j]].state,new_tracks[indicators[j]].cov,gmm.tracks[j].state,gmm.tracks[j].cov);
 		gmm.tracks[j].weight = new_weights[j];
 	}
+	
+	t4 = ros::Time::now();
+	ROS_INFO("Simulation %f, Weight Scaling %f, Resampling %f",(t2-t1).toSec(),(t3-t2).toSec(),(t4-t3).toSec());
 }
 
 // Return best weight
