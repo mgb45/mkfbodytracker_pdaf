@@ -12,24 +12,6 @@ using namespace std;
 
 ParticleFilter::ParticleFilter(int states, int nParticles)
 {
-	cv::Mat Sigma_a = Mat::zeros(states, states, CV_64F);
-	setIdentity(Sigma_a, Scalar::all(5));
-	Sigma_a.at<double>(0,0) = 50;
-	Sigma_a.at<double>(1,1) = 50;
-	Sigma_a.at<double>(2,2) = 1;
-	Sigma_a.at<double>(3,3) = 5;
-	Sigma_a.at<double>(4,4) = 5;
-	Sigma_a.at<double>(5,5) = 1;
-	Sigma_a.at<double>(8,8) = 1;
-	Sigma_a.at<double>(11,11) = 1;
-	Sigma_a.at<double>(14,14) = 1;
-	Sigma_a.at<double>(15,15) = 0.5;
-	Sigma_a.at<double>(16,16) = 0.5;
-	Sigma_a.at<double>(17,17) = 0.5;
-	Sigma_a.at<double>(18,18) = 0.01;
-	Sigma_a.at<double>(19,19) = 0.01;
-	Sigma_a.at<double>(20,20) = 0.01;
-	gmm.Sigma_a = Sigma_a;
 	gmm.nParticles = nParticles;
 	gmm.resetTracker(states);
 }

@@ -27,7 +27,6 @@ class my_gmm
 		std::vector<double> weight;
 		std::vector<KF_model> KFtracker;
 		std::vector<state_params> tracks;
-		cv::Mat Sigma_a;
 		int nParticles;
 };
 
