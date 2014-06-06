@@ -1,0 +1,27 @@
+<launch>
+  <node pkg="faceTracking" type="faceTrack" name="faceDetector" output="screen">
+	<remap from="image" to="/rgb/image_raw"/>
+  </node>
+
+<!--  <node pkg="openni_camera" type="openni_node" name="kinect">
+	  <param name="/image_mode" value="2"/>
+  </node> -->
+
+
+  <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/mgb45/Desktop/2014-01-31-13-02-00.bag"/>
+
+<!-- /home/mgb45/Desktop/2013-11-12-17-02-51.bag"/> -->
+
+
+  <node pkg="handBlobTracker" type="handTracker" name="handTracker" output="screen">
+	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
+  </node>
+
+  <node pkg="mkfbodytracker" type="poseTracker" name="poseTracker" output="screen">
+	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
+  </node>
+
+<node pkg="rviz" type="rviz" name="rviz" args="-d $(find pfBodyTracker)/view.rviz"/>
+
+
+</launch>
