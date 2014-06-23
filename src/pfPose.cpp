@@ -26,13 +26,15 @@ PFTracker::PFTracker()
 	cv::FileStorage fs1(ss1.str(), FileStorage::READ);
 	cv::FileStorage fs2(ss2.str(), FileStorage::READ);
 	
-	cv::Mat means1, weights1, means2, weights2, covs1, covs2;
+	cv::Mat means1, weights1, means2, weights2, covs1, covs2, g1, g2;
     fs1["means"] >> means1;
     fs2["means"] >> means2;
   	fs1["covs"] >> covs1;
 	fs2["covs"] >> covs2;
 	fs1["weights"] >> weights1;
     fs2["weights"] >> weights2;
+    fs1["gamma"] >> g1;
+    fs2["gamma"] >> g2;
     fs1.release();
     fs2.release();
     
@@ -42,8 +44,8 @@ PFTracker::PFTracker()
    
 	for (int i = 0; i < means1.rows; i++)
 	{
-		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)),1*weights1.at<double>(0,i));
-		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),1*weights2.at<double>(0,i));
+		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)),weights1.at<double>(0,i),g2.at<double>(0,i));
+		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)),weights2.at<double>(0,i),g2.at<double>(0,i));
 	}
 	////Load regularising gaussians - default constant velocity KF
 	//pf2->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),0.5*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 1);

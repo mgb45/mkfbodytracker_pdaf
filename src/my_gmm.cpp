@@ -51,19 +51,19 @@ void my_gmm::resetTracker(int d)
 }
 
 // Load a gaussian for gmm with mean, sigma and weight		
-void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w)
+void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w, double g)
 {
 	mean.push_back(u);
 	weight.push_back(w);
 	
 	KF_model tracker;
 	
-	tracker.Q = (1-w*w)*s;
+	tracker.Q = (1-g*g)*s;
 	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
 	
-	tracker.F = w*cv::Mat::eye(s.cols,s.cols, CV_64F);
+	tracker.F = g*cv::Mat::eye(s.cols,s.cols, CV_64F);
 		
-	tracker.B = (1.0 - w)*u.t();
+	tracker.B = (1.0 - g)*u.t();
 
 	tracker.H = cv::Mat::zeros(6,s.cols, CV_64F);
 	tracker.H.at<double>(0,9) = 1;
