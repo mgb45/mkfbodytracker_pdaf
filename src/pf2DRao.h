@@ -29,7 +29,7 @@ class my_gmm
 	public:
 		my_gmm();
 		~my_gmm();
-		void loadGaussian(cv::Mat mean, cv::Mat sigma, cv::Mat &H, cv::Mat &m, double weight);
+		void loadGaussian(cv::Mat mean, cv::Mat sigma, cv::Mat &H, cv::Mat &m, double weight, double g);
 		void resetTracker(int d);
 		std::vector<cv::Mat> mean;
 		std::vector<double> weight;
