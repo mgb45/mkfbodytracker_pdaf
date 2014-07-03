@@ -20,9 +20,13 @@ PFTracker::PFTracker()
 	
 	// Load Kinect GMM priors
 	std::stringstream ss1;
-	ss1 << ros::package::getPath("mkfbodytracker") << "/data13D_PCA.yml";
+	std::string left_arm_training;
+	ros::param::param<std::string>("left_arm_training", left_arm_training, "/data13D.yml");
+	ss1 << ros::package::getPath("mkfbodytracker") << left_arm_training;
 	std::stringstream ss2;
-	ss2 << ros::package::getPath("mkfbodytracker") << "/data23D_PCA.yml";
+	std::string right_arm_training;
+	ros::param::param<std::string>("right_arm_training", right_arm_training, "/data23D.yml");
+	ss2 << ros::package::getPath("mkfbodytracker") << right_arm_training;
 	cv::FileStorage fs1(ss1.str(), FileStorage::READ);
 	cv::FileStorage fs2(ss2.str(), FileStorage::READ);
 	
