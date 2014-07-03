@@ -8,8 +8,19 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "my_tf_listener");
 
   std::ofstream myfile1, myfile2;
-  myfile1.open ("kinectdata.txt");
-  myfile2.open ("camdata.txt");
+  time_t current_time = time(0);
+  struct tm * now = localtime( & current_time );
+  char buffer [80];
+  strftime (buffer,80,"%Y-%m-%d-%H-%M-%S",now);
+  std::ostringstream path_out1("./");
+  std::ostringstream path_out2("./");
+  path_out1 << "kinectdata_" << buffer << ".txt";
+  std::string path1 = path_out1.str();
+  path_out2 << "camdata_" << buffer << ".txt";
+  std::string path2 = path_out2.str();
+
+  myfile1.open (path1.c_str());
+  myfile2.open (path2.c_str());
   
   ros::NodeHandle node;
 
