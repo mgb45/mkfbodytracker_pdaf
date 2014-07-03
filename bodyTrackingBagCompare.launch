@@ -26,6 +26,6 @@
 
  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find pfBodyTracker)/view.rviz"/>
 
- <node pkg="mkfbodytracker" type="extractTFdata" name="DataLogger"/>
+ <node pkg="mkfbodytracker" type="extractTFdata" name="DataLogger" output="screen"/>
 
 </launch>
