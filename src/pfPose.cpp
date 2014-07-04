@@ -27,6 +27,8 @@ PFTracker::PFTracker()
 	std::string right_arm_training;
 	ros::param::param<std::string>("right_arm_training", right_arm_training, "/data23D_PCA.yml");
 	ss2 << ros::package::getPath("mkfbodytracker") << "/training" << right_arm_training;
+	ROS_INFO("Getting data from %s",ss1.str().c_str());
+	ROS_INFO("Getting data from %s",ss2.str().c_str());
 	cv::FileStorage fs1(ss1.str(), FileStorage::READ);
 	cv::FileStorage fs2(ss2.str(), FileStorage::READ);
 	
@@ -51,8 +53,8 @@ PFTracker::PFTracker()
     fs2.release();
     
     d = m1_pca.cols;
-	pf1 = new ParticleFilter(d,means1.cols,15); // left arm pf
-	pf2 = new ParticleFilter(d,means2.cols,15); // right arm pf
+	pf1 = new ParticleFilter(d,means1.cols,means1.rows); // left arm pf
+	pf2 = new ParticleFilter(d,means2.cols,means2.rows); // right arm pf
    
 	for (int i = 0; i < means1.rows; i++)
 	{

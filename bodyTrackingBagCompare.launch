@@ -10,7 +10,7 @@
 	<remap from="image" to="/rgb/image_color"/>
   </node>
 
-  <node pkg="rosbag" type="play" name="rosbag" required="true" args="--clock -d 5 -r 0.1 /home/mgb45/Documents/mgb45/humanArmModel/ims2/2013-05-21-13-10-41.bag"/>
+  <node pkg="rosbag" type="play" name="rosbag" required="true" args="--clock -d 2 -r 1 /home/mgb45/Documents/mgb45/humanArmModel/ims2/2013-05-21-13-10-41.bag"/>
 
   <node pkg="tf" type="static_transform_publisher" name="tf_broadcaster" args="0 0 0 1.57079632679 0 0 /cam /openni_depth_frame 100" />
 
