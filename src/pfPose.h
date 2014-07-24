@@ -39,6 +39,8 @@ class PFTracker
 		
 		ParticleFilter *pf1;
 		ParticleFilter *pf2;
+		
+		cv::Mat m1_pca, m2_pca, h1_pca, h2_pca;
 				
 		void callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg);
 		

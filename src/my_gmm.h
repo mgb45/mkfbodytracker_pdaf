@@ -1,6 +1,7 @@
 #ifndef __MYGMM
 #define __MYGMM
 
+#include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "KF_model.h"
@@ -21,7 +22,7 @@ class my_gmm
 	public:
 		my_gmm();
 		~my_gmm();
-		void loadGaussian(cv::Mat mean, cv::Mat sigma, double weight, double g);
+		void loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w, double g);
 		void resetTracker(int d);
 		std::vector<cv::Mat> mean;
 		std::vector<double> weight;

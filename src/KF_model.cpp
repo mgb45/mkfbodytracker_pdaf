@@ -16,7 +16,7 @@ void KF_model::predict(cv::Mat &state, cv::Mat &cov)
 
 void KF_model::update(cv::Mat measurement, cv::Mat &state, cv::Mat &cov)
 {
-	cv::Mat y = measurement - H*state;
+	cv::Mat y = measurement - (H*state + BH);
 	cv::Mat S = H*cov*H.t() + R;
 	cv::Mat K = cov*H.t()*S.inv();
 	

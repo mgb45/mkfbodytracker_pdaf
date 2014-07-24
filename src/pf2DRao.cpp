@@ -52,11 +52,12 @@ void ParticleFilter::update(cv::Mat measurement)
 	wsum = 0;
 	int i;
 	std::vector<state_params> temp;
+	
 	for (int j = 0; j < gmm.nParticles; j++) //update KF for each track using indicator samples
 	{
 		i = indicators[j];
 		gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov);
-		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
+		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
 		wsum = wsum + weights[j];
 		gmm.KFtracker[i].update(measurement,gmm.tracks[j].state,gmm.tracks[j].cov);
 		temp.push_back(gmm.tracks[j]);

@@ -35,23 +35,15 @@ void my_gmm::resetTracker(int d)
 		state_params temp;
 		temp.state = cv::Mat::zeros(d,1,CV_64F);
 		randu(temp.state,1,480);
-		for (int j = 2; j < d-6; j+=2)
-		{
-			randn(temp.state.row(j),3,5);
-		}
-		for (int j = d-6; j < d; j++)
-		{
-			randn(temp.state.row(j),0,5);
-		}
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
-		cv::setIdentity(temp.cov, cv::Scalar::all(4500));
+		setIdentity(temp.cov, cv::Scalar::all(10000));
 		tracks.push_back(temp);
 	}
 }
 
 // Load a gaussian for gmm with mean, sigma and weight		
-void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w, double g)
+void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w, double g)
 {
 	mean.push_back(u);
 	weight.push_back(w);
@@ -65,13 +57,16 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, double w, double g)
 		
 	tracker.B = (1.0 - g)*u.t();
 
-	tracker.H = cv::Mat::zeros(6,s.cols, CV_64F);
-	tracker.H.at<double>(0,9) = 1;
-	tracker.H.at<double>(1,10) = 1;
-	tracker.H.at<double>(2,0) = 1;
-	tracker.H.at<double>(3,1) = 1;
-	tracker.H.at<double>(4,12) = 1;
-	tracker.H.at<double>(5,13) = 1;
+	cv::Mat H1 = cv::Mat::zeros(6,m.cols, CV_64F);
+	H1.at<double>(0,9) = 1;
+	H1.at<double>(1,10) = 1;
+	H1.at<double>(2,0) = 1;
+	H1.at<double>(3,1) = 1;
+	H1.at<double>(4,12) = 1;
+	H1.at<double>(5,13) = 1;
+	
+	tracker.H = H1*H.t();
+	tracker.BH = H1*m.t();
 	
 	KFtracker.push_back(tracker);
 }
