@@ -78,7 +78,6 @@ void ParticleFilter::update(cv::Mat measurement)
 	wsum = 1.0;
 	
 	t3 = ros::Time::now();
-		
 	// Re-sample tracks
 	std::vector<int> indicators;
 	std::vector<double> new_weights;
@@ -94,7 +93,7 @@ void ParticleFilter::update(cv::Mat measurement)
 	}
 	
 	t4 = ros::Time::now();
-	ROS_INFO("Simulation %f, Weight Scaling %f, Resampling %f",(t2-t1).toSec(),(t3-t2).toSec(),(t4-t3).toSec());
+	//ROS_INFO("Simulation %f, Weight Scaling %f, Resampling %f",(t2-t1).toSec(),(t3-t2).toSec(),(t4-t3).toSec());
 }
 
 // Return best weight
@@ -203,16 +202,17 @@ std::vector<int> ParticleFilter::resampleStratifiedFernhead(std::vector<double> 
 			remnants.push_back(weights[i]);
 		}
 	}
-	
 	// Perform stratified sampling on remaining weights
 	int L = N - (int)indicators.size();
-	//~ ROS_WARN("%f %f, %d %d",c,temp_c,L,(int)remnants.size());
-	std::vector<int> ind2 = resampleStratified(remnants, L);
-	for (int j = 0; j < L; j++)
+	if (L > 0)
 	{
-		indicators.push_back(remnant_idx[ind2[j]]);
-		new_weights.push_back(1.0/c);
+		//~ ROS_WARN("%f %f, %d %d",c,temp_c,L,(int)remnants.size());
+		std::vector<int> ind2 = resampleStratified(remnants, L);
+		for (int j = 0; j < L; j++)
+		{
+			indicators.push_back(remnant_idx[ind2[j]]);
+			new_weights.push_back(1.0/c);
+		}
 	}
-	
 	return indicators;
 }

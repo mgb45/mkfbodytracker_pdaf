@@ -22,11 +22,11 @@ PFTracker::PFTracker()
 	
 	std::stringstream ss1;
 	std::string left_arm_training;
-	ros::param::param<std::string>("left_arm_training", left_arm_training, "/data13D_PCA.yml");
+	ros::param::param<std::string>("left_arm_training", left_arm_training, "/data13D.yml");
 	ss1 << ros::package::getPath("mkfbodytracker") << left_arm_training;
 	std::stringstream ss2;
 	std::string right_arm_training;
-	ros::param::param<std::string>("right_arm_training", right_arm_training, "/data23D_PCA.yml");
+	ros::param::param<std::string>("right_arm_training", right_arm_training, "/data23D.yml");
 	ss2 << ros::package::getPath("mkfbodytracker") << right_arm_training;
 	ROS_INFO("Getting data from %s",ss1.str().c_str());
 	ROS_INFO("Getting data from %s",ss2.str().c_str());
