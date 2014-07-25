@@ -21,11 +21,11 @@ PFTracker::PFTracker()
 	// Load Kinect GMM priors
 	std::stringstream ss1;
 	std::string left_arm_training;
-	ros::param::param<std::string>("left_arm_training", left_arm_training, "/training/data13D_PCA.yml");
+	ros::param::param<std::string>("left_arm_training", left_arm_training, "/training/data13D_PCA_100000_29_13.yml");
 	ss1 << ros::package::getPath("mkfbodytracker") << left_arm_training;
 	std::stringstream ss2;
 	std::string right_arm_training;
-	ros::param::param<std::string>("right_arm_training", right_arm_training, "/training/data23D_PCA.yml");
+	ros::param::param<std::string>("right_arm_training", right_arm_training, "/training/data23D_PCA_100000_29_13.yml");
 	ss2 << ros::package::getPath("mkfbodytracker") << right_arm_training;
 	ROS_INFO("Getting data from %s",ss1.str().c_str());
 	ROS_INFO("Getting data from %s",ss2.str().c_str());
@@ -204,7 +204,7 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 	
 	edge_heuristic = 0.95*edge_heuristic+0.05*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
 	ROS_DEBUG("Forearm evidence: %f, r_upper: %f r_lower: %f l_upper: %f l_lower: %f.",edge_heuristic,e4,e1,e3,e2);	
-	if ((edge_heuristic < 0.09))
+	if ((edge_heuristic < 0.07))
 	{
 		ROS_WARN("Reset (line check fail): %f",edge_heuristic);
 		edge_heuristic = 2e-1;
