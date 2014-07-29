@@ -1,4 +1,10 @@
 <launch>
+  <arg name="file1" default="/data13D_PCA_100000_25_20.yml"/>
+  <arg name="file2" default="/data23D_PCA_100000_25_20.yml"/>
+
+  <param name="left_arm_training" value="$(arg file1)"/> 
+  <param name="right_arm_training" value="$(arg file2)"/> 
+
   <node pkg="faceTracking" type="faceTrack" name="faceDetector" output="screen">
 	<remap from="image" to="/rgb/image_raw"/>
   </node>
