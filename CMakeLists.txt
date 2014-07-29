@@ -29,4 +29,5 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_add_executable(poseTracker src/pfPoseTracker.cpp src/pfPose.cpp src/pf2DRao.cpp)
 rosbuild_add_executable(extractTFdata src/extractTFdata.cpp)
 rosbuild_link_boost(poseTracker signals)
+
 #target_link_libraries(example ${PROJECT_NAME})
