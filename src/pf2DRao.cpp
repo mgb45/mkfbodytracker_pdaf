@@ -36,10 +36,13 @@ double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
 	cv::Mat sigma_i;
 	invert(sigma,sigma_i,DECOMP_CHOLESKY);
-	cv::Mat x_u(x.size(),x.type());
-	x_u = x - u;
-	cv::Mat temp = -0.5*x_u.t()*sigma_i*x_u;
-	return 1.0/(pow(2.0*M_PI,sigma.rows/2.0)*sqrt(cv::determinant(sigma)))*exp(temp.at<double>(0,0));
+	cv::Mat x_u = (x - u).t()*sigma_i;
+	cv::Mat temp;
+	cv::log(sigma_i.diag(0),temp);
+	double logSqrtDetSigma = cv::sum(temp)[0];
+	cv::pow(x_u,2,temp);
+	double quadform = cv::sum(x_u)[0];
+	return (exp(-0.5*quadform - logSqrtDetSigma - x.rows*log(2*M_PI)/2));;
 }
 
 // Update stage

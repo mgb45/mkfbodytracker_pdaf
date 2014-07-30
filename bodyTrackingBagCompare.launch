@@ -1,6 +1,6 @@
 <launch>
-  <arg name="file1" default="/data13D_PCA_100000_30_18.yml"/>
-  <arg name="file2" default="/data23D_PCA_100000_30_18.yml"/>
+  <arg name="file1" default="/data13D_PCA_100000_32_15.yml"/>
+  <arg name="file2" default="/data23D_PCA_100000_32_15.yml"/>
 
   <param name="left_arm_training" value="$(arg file1)"/>
   <param name="right_arm_training" value="$(arg file2)"/>
