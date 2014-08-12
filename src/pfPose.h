@@ -35,6 +35,7 @@ class PFTracker
 		ros::NodeHandle nh;
 		image_transport::Publisher pub;
 		image_transport::Publisher edge_pub;
+		image_transport::Publisher prob_pub;
 		ros::Publisher hand_pub;
 		
 		ParticleFilter *pf1;
@@ -52,7 +53,7 @@ class PFTracker
 		cv::Mat get3Dpose(cv::Mat estimate);
 		cv::Mat associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg);
 		bool edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3);
-		
+		void getProbImage(cv::Mat e1, cv::Mat e2);
 		double edge_heuristic;
 		bool swap;
 		int d;

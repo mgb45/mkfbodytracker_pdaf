@@ -37,7 +37,7 @@ void my_gmm::resetTracker(int d)
 		randu(temp.state,1,480);
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
-		setIdentity(temp.cov, cv::Scalar::all(10000));
+		setIdentity(temp.cov, cv::Scalar::all(1000));
 		tracks.push_back(temp);
 	}
 }

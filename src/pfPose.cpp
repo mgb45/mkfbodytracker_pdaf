@@ -10,12 +10,13 @@ PFTracker::PFTracker()
 	
 	pub = it.advertise("/poseImage",10);
 	edge_pub = it.advertise("/handImage",10);
+	prob_pub = it.advertise("/probImage",10);
 	hand_pub = nh.advertise<handBlobTracker::HFPose2DArray>("/correctedFaceHandPose", 10);
 		
 	image_sub.subscribe(nh, "/rgb/image_color", 1);
 	pose_sub.subscribe(nh, "/faceHandPose", 1); 
 		
-	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>(image_sub,pose_sub,10);
+	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>(image_sub,pose_sub,20);
 	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2));
 	
 	// Load Kinect GMM priors
@@ -52,7 +53,7 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-    d = m1_pca.cols;
+    d = h1_pca.rows;
 	pf1 = new ParticleFilter(d,100); // left arm pf
 	pf2 = new ParticleFilter(d,100); // right arm pf
 
@@ -232,11 +233,29 @@ cv::Mat PFTracker::associateHands(const handBlobTracker::HFPose2DArrayConstPtr& 
 	return pt;
 }
 
+void PFTracker::getProbImage(cv::Mat e1, cv::Mat e2)
+{
+	cv_bridge::CvImage prob;
+	prob.encoding = "rgb8";
+	prob.image = pf1->getProbMap(h2_pca.t(), m2_pca.t());//edge_image;			
+	int i;
+	int col[3] = {0, 125, 255};
+	for (i = 0; i < 2; i++)
+	{
+		line(prob.image, Point(e1.at<double>(0,3*i)/8.0,e1.at<double>(0,3*i+1)/8.0), Point(e1.at<double>(0,3*(i+1))/8.0,e1.at<double>(0,3*(i+1)+1)/8.0), Scalar(col[i], 255, col[2-i]), 1, 8,0);
+		line(prob.image, Point(e2.at<double>(0,3*i)/8.0,e2.at<double>(0,3*i+1)/8.0), Point(e2.at<double>(0,3*(i+1))/8.0,e2.at<double>(0,3*(i+1)+1)/8.0), Scalar(col[i], 255, col[2-i]), 1, 8,0);
+	}
+	line(prob.image, Point(e1.at<double>(0,3*i)/8.0,e1.at<double>(0,3*i+1)/8.0), Point(e2.at<double>(0,3*i)/8.0,e2.at<double>(0,3*i+1)/8.0), Scalar(0, 255, 0), 1, 8,0);
+	line(prob.image, Point(e1.at<double>(0,3*(i+1))/8.0,e1.at<double>(0,3*(i+1)+1)/8.0), Point(e1.at<double>(0,3*(i+2))/8.0,e1.at<double>(0,3*(i+2)+1)/8.0), Scalar(255, 0, 0), 1, 8,0);	
+	prob_pub.publish(prob.toImageMsg()); // publish result image
+
+}
+
 // perform particle filter update to estimate upper body joint positions
 void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg)
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
-			
+	
 	if ((msg->valid[1])&&(msg->valid[0])) // Valid hand measurements
 	{
 		cv::Mat measurement1(6,1,CV_64F);
@@ -259,13 +278,15 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		measurement2.at<double>(4,0) = msg->measurements[3].x;
 		measurement2.at<double>(5,0) = msg->measurements[3].y;
 		pf2->update(measurement2); // particle filter measurement right arm
-	
+		
 		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
 		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
 		
 		cv::Mat p3D1 = get3Dpose(e1);
 		cv::Mat p3D2 = get3Dpose(e2);
-			
+		
+		getProbImage(e1,e2);
+
 		// Publish tf tree for rviz
 		std::string strArr2[] = {"Left_Hand", "Left_Elbow", "Left_Shoulder"};
 		std::string strArr1[] = {"Right_Hand", "Right_Elbow", "Right_Shoulder"};
@@ -351,7 +372,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		cv_bridge::CvImage img_edge;
 		img_edge.header = immsg->header;
 		img_edge.encoding = "rgb8";
-		img_edge.image = edge_image;			
+		img_edge.image = edge_image;
 		edge_pub.publish(img_edge.toImageMsg()); // publish result image
 		if (!val) // Reset trackers if tracking failure
 		{
