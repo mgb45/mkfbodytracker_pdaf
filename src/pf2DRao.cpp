@@ -151,16 +151,18 @@ double ParticleFilter::maxWeight(std::vector<double> weights)
 // Resample according to weights
 std::vector<int> ParticleFilter::resample(std::vector<double> weights, int N)
 {
+	int L = weights.size();
 	std::vector<int> indicators;
-	int idx = rand() % N;
+	int idx = rand() % L;
 	double beta = 0.0;
 	double mw = maxWeight(weights);
+	cv::RNG rng(cv::getTickCount());
 	if (mw == 0)
 	{
 		weights.clear();
 		for (int i = 0; i < N; i++)
 		{
-			indicators.push_back(i);
+			indicators.push_back(rng.uniform(0, L));
 			weights.push_back(1.0/(double)N);
 		}
 	}
@@ -168,13 +170,13 @@ std::vector<int> ParticleFilter::resample(std::vector<double> weights, int N)
 	{
 		idx = 0;
 		double step = 1.0 / (double)N;
-		beta = ((double)rand()/RAND_MAX)*step;
+		beta = rng.uniform(0.0, 1.0)*step;
 		for (int i = 0; i < N; i++)
 		{
 			while (beta > weights[idx])
 			{
 				beta -= weights[idx];
-				idx = (idx + 1) % N;
+				idx = (idx + 1) % L;
 			}
 			beta += step;
 			indicators.push_back(idx);
