@@ -1,6 +1,6 @@
 <launch>
-  <arg name="file1" default="/training/data13D_PCA_100000_29_13.yml"/>
-  <arg name="file2" default="/training/data23D_PCA_100000_29_13.yml"/>
+  <arg name="file1" default="/data13D_PCA_100000_15_12.yml"/>
+  <arg name="file2" default="/data23D_PCA_100000_15_12.yml"/>
 
   <param name="left_arm_training" value="$(arg file1)"/> 
   <param name="right_arm_training" value="$(arg file2)"/> 
@@ -9,21 +9,13 @@
 	<remap from="image" to="/rgb/image_raw"/>
   </node>
 
-<!--  <node pkg="openni_camera" type="openni_node" name="kinect">
-	  <param name="/image_mode" value="2"/>
-  </node> -->
-
-
   <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/mgb45/Desktop/2014-01-31-13-02-00.bag"/>
 
-<!-- /home/mgb45/Desktop/2013-11-12-17-02-51.bag"/> -->
-
-
-  <node pkg="handBlobTracker" type="handTracker" name="handTracker" output="screen">
+  <node pkg="measurementproposals" type="handTracker" name="handTracker" output="screen">
 	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
   </node>
 
-  <node pkg="mkfbodytracker" type="poseTracker" name="poseTracker" output="screen">
+  <node pkg="mkfbodytracker_pdaf" type="poseTracker" name="poseTracker" output="screen">
 	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
   </node>
 

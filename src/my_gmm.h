@@ -13,6 +13,7 @@ class state_params
 		~state_params();
 		state_params(const state_params& other);
 		cv::Mat state;
+		cv::Mat measurement;
 		cv::Mat cov;
 		double weight;
 };

@@ -20,7 +20,7 @@
   <depend package="tf"/>
   <depend package="message_filters"/>
   <depend package="faceTracking"/>
-  <depend package="handBlobTracker"/>
+  <depend package="measurementproposals"/>
 </package>
 
 

@@ -11,23 +11,23 @@ PFTracker::PFTracker()
 	pub = it.advertise("/poseImage",10);
 	edge_pub = it.advertise("/handImage",10);
 	prob_pub = it.advertise("/probImage",10);
-	hand_pub = nh.advertise<handBlobTracker::HFPose2DArray>("/correctedFaceHandPose", 10);
+	hand_pub = nh.advertise<measurementproposals::HFPose2DArray>("/correctedFaceHandPose", 10);
 		
-	image_sub.subscribe(nh, "/rgb/image_color", 1);
+	image_sub.subscribe(nh, "/rgb/image_raw", 1);
 	pose_sub.subscribe(nh, "/faceHandPose", 1); 
 		
-	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>(image_sub,pose_sub,20);
+	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, measurementproposals::HFPose2DArray>(image_sub,pose_sub,20);
 	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2));
 	
-	// Load Kinect GMM priors
+	// Load Kinect GMM priorsexi
 	std::stringstream ss1;
 	std::string left_arm_training;
 	ros::param::param<std::string>("left_arm_training", left_arm_training, "/training/data13D_PCA_100000_29_13.yml");
-	ss1 << ros::package::getPath("mkfbodytracker") << left_arm_training;
+	ss1 << ros::package::getPath("mkfbodytracker_pdaf") << left_arm_training;
 	std::stringstream ss2;
 	std::string right_arm_training;
 	ros::param::param<std::string>("right_arm_training", right_arm_training, "/training/data23D_PCA_100000_29_13.yml");
-	ss2 << ros::package::getPath("mkfbodytracker") << right_arm_training;
+	ss2 << ros::package::getPath("mkfbodytracker_pdaf") << right_arm_training;
 	ROS_INFO("Getting data from %s",ss1.str().c_str());
 	ROS_INFO("Getting data from %s",ss2.str().c_str());
 	cv::FileStorage fs1(ss1.str(), FileStorage::READ);
@@ -53,21 +53,16 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
+    numParticles = 80;
     d = h1_pca.rows;
-	pf1 = new ParticleFilter(d,100); // left arm pf
-	pf2 = new ParticleFilter(d,100); // right arm pf
+	pf1 = new ParticleFilter(d,numParticles); // left arm pf
+	pf2 = new ParticleFilter(d,numParticles); // right arm pf
 
 	for (int i = 0; i < means1.rows; i++)
 	{
 		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)), h1_pca, m1_pca, weights1.at<double>(0,i), g1.at<double>(0,i));
 		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)), h2_pca, m2_pca, weights2.at<double>(0,i), g2.at<double>(0,i));
 	}
-	////Load regularising gaussians - default constant velocity KF
-	//pf2->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),0.5*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 1);
-	//pf1->gmm.loadGaussian(cv::Mat::zeros(1,means1.cols,CV_64F),0.5*cv::Mat::eye(means1.cols,means1.cols,CV_64F), 1);
-	
-	swap = false;
-	edge_heuristic = 1e-1;
 }
 
 PFTracker::~PFTracker()
@@ -123,116 +118,6 @@ cv::Mat PFTracker::get3Dpose(cv::Mat estimate)
 	return pos3D;
 }
 
-bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3)
-{
-	bool value = true;
-	
-	// Edge detection
-	cv::Mat dst;
-	Canny(image4, dst, 90, 200, 3);
-
-	// Find lines in edge image
-	vector<Vec4i> lines;
-	HoughLinesP(dst, lines, 5, 5*CV_PI/180, 10, 5, 10 );
-	
-	// Declare edge probabilities
-	double e1=1e-4,e2=1e-4,e3=1e-4,e4=1e-4;
-	
-	// Draw stick limbs
-	line(image3, Point(pfPose.measurements[1].x, pfPose.measurements[1].y), Point(pfPose.measurements[5].x, pfPose.measurements[5].y), Scalar(0,255,255), 3, CV_AA); //right_arm_l
-	line(image3, Point(pfPose.measurements[0].x, pfPose.measurements[0].y), Point(pfPose.measurements[4].x, pfPose.measurements[4].y), Scalar(255,0,255), 3, CV_AA); //left_arm_l
-	line(image3, Point(pfPose.measurements[7].x, pfPose.measurements[7].y), Point(pfPose.measurements[5].x, pfPose.measurements[5].y), Scalar(0,255,0), 3, CV_AA); // right_arm_u
-	line(image3, Point(pfPose.measurements[6].x, pfPose.measurements[6].y), Point(pfPose.measurements[4].x, pfPose.measurements[4].y), Scalar(255,255,0), 3, CV_AA); //left_arm_u
-	
-	double right_arm_l_x = (pfPose.measurements[1].x + pfPose.measurements[5].x)/2.0;
-	double right_arm_l_y = (pfPose.measurements[1].y + pfPose.measurements[5].y)/2.0;
-	double right_arm_l_th  = atan2(pfPose.measurements[1].y-pfPose.measurements[5].y,pfPose.measurements[1].x-pfPose.measurements[5].x);
-	
-	double left_arm_l_x = (pfPose.measurements[0].x + pfPose.measurements[4].x)/2.0;
-	double left_arm_l_y = (pfPose.measurements[0].y + pfPose.measurements[4].y)/2.0;
-	double left_arm_l_th  = atan2(pfPose.measurements[0].y-pfPose.measurements[4].y,pfPose.measurements[0].x-pfPose.measurements[4].x);
-			
-	double right_arm_u_x = (pfPose.measurements[7].x + pfPose.measurements[5].x)/2.0;
-	double right_arm_u_y = (pfPose.measurements[7].y + pfPose.measurements[5].y)/2.0;
-	double right_arm_u_th  = atan2(pfPose.measurements[7].y-pfPose.measurements[5].y,pfPose.measurements[7].x-pfPose.measurements[5].x);
-			
-	double left_arm_u_x = (pfPose.measurements[6].x + pfPose.measurements[4].x)/2.0;
-	double left_arm_u_y = (pfPose.measurements[6].y + pfPose.measurements[4].y)/2.0;
-	double left_arm_u_th  = atan2(pfPose.measurements[6].y-pfPose.measurements[4].y,pfPose.measurements[6].x-pfPose.measurements[4].x);
-	
-	for (int i = 0; i < (int)lines.size(); i++)
-	{
-		Vec4i l = lines[i];
-		line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 1, CV_AA);
-	
-		double th  = atan2(l[3]-l[1],l[2]-l[0]);
-		double x = (l[0]+l[2])/2.0;
-		double y = (l[1]+l[3])/2.0;
-		
-		double d1 = pow(right_arm_l_x-x,2)+pow(right_arm_l_y-y,2);
-		double d2 = pow(left_arm_l_x-x,2)+pow(left_arm_l_y-y,2);
-		double d3 = pow(left_arm_u_x-x,2)+pow(left_arm_u_y-y,2);
-		double d4 = pow(right_arm_u_x-x,2)+pow(right_arm_u_y-y,2);
-		
-		double temp = exp(-0.5*(1.0/125.0*d1 + 1.0/0.01*pow(atan(sin(right_arm_l_th - th)/cos(right_arm_l_th - th)),2)));
-		if (temp > e1)
-		{
-			e1 = temp;
-			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,255,255), 1, CV_AA);
-		}		
-			
-		temp = exp(-0.5*(1.0/125.0*d2 + 1.0/0.01*pow(atan(sin(left_arm_l_th - th)/cos(left_arm_l_th - th)),2)));
-		if (temp > e2)
-		{
-			e2 = temp;
-			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,255), 1, CV_AA);
-		}
-		
-		temp = exp(-0.5*(1.0/125.0*d3 + 1.0/0.01*pow(atan(sin(left_arm_u_th - th)/cos(left_arm_u_th - th)),2)));
-		if (temp > e3)
-		{
-			e3 = temp;
-			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,255,0), 1, CV_AA);
-		}
-		
-		temp = exp(-0.5*(1.0/125.0*d4 + 1.0/0.01*pow(atan(sin(right_arm_u_th - th)/cos(right_arm_u_th - th)),2)));
-		if (temp > e4)
-		{
-			e4 = temp;
-			line(image3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,255,0), 1, CV_AA);
-		}
-	}
-	
-	edge_heuristic = 0.95*edge_heuristic+0.05*(e1+e2+e3+e4)/4.0; //smoothing filter to reduce clutter
-	ROS_DEBUG("Forearm evidence: %f, r_upper: %f r_lower: %f l_upper: %f l_lower: %f.",edge_heuristic,e4,e1,e3,e2);	
-	if ((edge_heuristic < 0.07))
-	{
-		ROS_WARN("Reset (line check fail): %f",edge_heuristic);
-		edge_heuristic = 2e-1;
-		value = false;
-	}
-	
-	return value;
-}
-
-cv::Mat PFTracker::associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg)
-{
-	cv::Mat pt1 = (cv::Mat_<double>(2,1) << msg->measurements[0].x, msg->measurements[0].y);
-	cv::Mat pt2 = (cv::Mat_<double>(2,1) << msg->measurements[1].x, msg->measurements[1].y);
-	cv::Mat pt(4,1,CV_64F);	
-	if (swap)
-	{
-		 pt2.copyTo(pt.rowRange(Range(0,2)));
-		 pt1.copyTo(pt.rowRange(Range(2,4)));
-	}
-	else
-	{
-		pt1.copyTo(pt.rowRange(Range(0,2)));
-		pt2.copyTo(pt.rowRange(Range(2,4)));
-	}
-	return pt;
-}
-
 void PFTracker::getProbImage(cv::Mat e1, cv::Mat e2)
 {
 	cv_bridge::CvImage prob;
@@ -251,208 +136,221 @@ void PFTracker::getProbImage(cv::Mat e1, cv::Mat e2)
 
 }
 
+void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
+{
+	cv::Mat p3D1 = get3Dpose(e1);
+	cv::Mat p3D2 = get3Dpose(e2);
+
+	// Publish tf tree for rviz
+	std::string strArr2[] = {"Left_Hand", "Left_Elbow", "Left_Shoulder"};
+	std::string strArr1[] = {"Right_Hand", "Right_Elbow", "Right_Shoulder"};
+	static tf::TransformBroadcaster br;
+	tf::Transform transform;
+	tf::Quaternion no_rot_quat;
+	no_rot_quat.setEuler(0.0,0.0,0.0);
+	transform.setRotation(no_rot_quat);
+	for (int k = 0; k < 2; k++)
+	{
+	transform.setOrigin(tf::Vector3(p3D1.at<double>(0,k) - p3D1.at<double>(0,k+1), p3D1.at<double>(2,k) - p3D1.at<double>(2,k+1), -p3D1.at<double>(1,k)+p3D1.at<double>(1,k+1)));
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr1[k+1].c_str(), strArr1[k].c_str()));
+	transform.setOrigin(tf::Vector3(p3D2.at<double>(0,k) - p3D2.at<double>(0,k+1), p3D2.at<double>(2,k) - p3D2.at<double>(2,k+1), -p3D2.at<double>(1,k)+p3D2.at<double>(1,k+1)));
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr2[k+1].c_str(), strArr2[k].c_str()));
+	}
+
+	double neck_x = (p3D1.at<double>(0,4) + p3D2.at<double>(0,4))/2.0;
+	double neck_y = (p3D1.at<double>(1,4) + p3D2.at<double>(1,4))/2.0;
+	double neck_z = (p3D1.at<double>(2,4) + p3D2.at<double>(2,4))/2.0;
+	double head_x = (p3D1.at<double>(0,3) + p3D2.at<double>(0,3))/2.0;
+	double head_y = (p3D1.at<double>(1,3) + p3D2.at<double>(1,3))/2.0;
+	double head_z = (p3D1.at<double>(2,3) + p3D2.at<double>(2,3))/2.0;
+
+	transform.setOrigin(tf::Vector3(p3D1.at<double>(0,2) - neck_x, p3D1.at<double>(2,2) - neck_z, -p3D1.at<double>(1,2) + neck_y));
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Neck", strArr1[2].c_str()));
+	transform.setOrigin(tf::Vector3(p3D2.at<double>(0,2) - neck_x, p3D2.at<double>(2,2) - neck_z, -p3D2.at<double>(1,2) + neck_y));
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Neck", strArr2[2].c_str()));
+	transform.setOrigin(tf::Vector3(neck_x - head_x, neck_z - head_z, -neck_y + head_y));
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Head", "Neck"));
+	transform.setOrigin(tf::Vector3(head_x, head_z, -head_y));
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "Head"));
+
+	transform.setOrigin(tf::Vector3(-e1.at<double>(0,18), -e1.at<double>(0,20), e1.at<double>(0,19)));
+	tf::Quaternion cam_rot;
+	cam_rot.setEuler(-e1.at<double>(0,16),-e1.at<double>(0,17),-e1.at<double>(0,15));
+	transform.setRotation(cam_rot);
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "cam"));
+}
+
+void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const measurementproposals::HFPose2DArrayConstPtr& msg)
+{
+	// Create result message
+	measurementproposals::HFPose2D rosHands;
+	measurementproposals::HFPose2DArray rosHandsArr;
+	rosHands.x = e1.at<double>(0,0);
+	rosHands.y = e1.at<double>(0,1);
+	rosHandsArr.measurements.push_back(rosHands); //hand1
+	rosHands.x = e2.at<double>(0,0);
+	rosHands.y = e2.at<double>(0,1);
+	rosHandsArr.measurements.push_back(rosHands); //hand2
+	rosHands.x = 0.5*(e1.at<double>(0,9) + e2.at<double>(0,9));
+	rosHands.y = 0.5*(e1.at<double>(0,10) + e2.at<double>(0,10));
+	rosHandsArr.measurements.push_back(rosHands); //head
+	rosHands.x = 0.5*(e1.at<double>(0,12) + e2.at<double>(0,12));
+	rosHands.y = 0.5*(e1.at<double>(0,13) + e2.at<double>(0,13));
+	rosHandsArr.measurements.push_back(rosHands); //Neck
+	rosHands.x = e1.at<double>(0,3);
+	rosHands.y = e1.at<double>(0,4);
+	rosHandsArr.measurements.push_back(rosHands); //elbow1
+	rosHands.x = e2.at<double>(0,3);
+	rosHands.y = e2.at<double>(0,4);
+	rosHandsArr.measurements.push_back(rosHands); //elbow2
+	rosHands.x = e1.at<double>(0,6);
+	rosHands.y = e1.at<double>(0,7);
+	rosHandsArr.measurements.push_back(rosHands); //Shoulder1
+	rosHands.x = e2.at<double>(0,6);
+	rosHands.y = e2.at<double>(0,7);
+	rosHandsArr.measurements.push_back(rosHands); //Shoulder2
+		
+	rosHandsArr.header = msg->header;
+	rosHandsArr.id = msg->id;
+	hand_pub.publish(rosHandsArr);
+}
+
+cv::Mat PFTracker::knnProb(cv::Mat m1, cv::Mat m2, cv::Mat measurements,int K)
+{
+	cv::Mat m,mf;
+	hconcat(m1, m2, m);
+	cv::Mat labels1 = cv::Mat::ones(1,m1.cols,CV_32S);
+	cv::Mat labels2 = cv::Mat::zeros(1,m2.cols,CV_32S);
+	cv::Mat labels;
+	hconcat(labels1, labels2, labels);
+	m.convertTo(mf,CV_32F,1,0);
+	CvKNearest knn(mf.t(),labels.t(),cv::Mat(),false,K);
+	
+	cv::Mat results;
+	knn.find_nearest(measurements.t(),K,0,0,&results,0);
+	
+	return results;
+}
+
+void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, cv::Mat image)
+{
+	// Get resampled measurements from pfs p(A_{t-1}|z_{1:t-1})
+	cv::Mat m1 = pf1->getPreviousHandMeasurements();
+	cv::Mat m2 = pf2->getPreviousHandMeasurements();
+	Point pt;
+	for (int i = 0; i < numParticles; i++)
+	{
+		// Draw measurements
+		pt.x = m1.at<double>(0,i) ;
+		pt.y = m1.at<double>(1,i);
+		circle(image, pt, 2, Scalar(0,0,255), -1, 8);
+			
+		// Draw measurements
+		pt.x = m2.at<double>(0,i) ;
+		pt.y = m2.at<double>(1,i);
+		circle(image, pt, 2, Scalar(255,0,0), -1, 8);
+	}
+	
+	// Package new measurements into matrix
+	cv::Mat measurements(2,(int)msg->measurements.size()-2,CV_32F);
+	for (int i = 2; i < (int)msg->measurements.size(); i++) // Start at idx 2 since 1st 2 are head and neck
+	{
+		measurements.at<float>(0,i) = (float)msg->measurements[i].x;
+		measurements.at<float>(1,i) = (float)msg->measurements[i].y;
+	}
+	
+	// Approximate p(m=A) as N_A/N_T nearest neighbour prob			
+	int K = 50;
+	cv::Mat results = knnProb(m1,m2,measurements,K); // results is length(measurements) x K, 1 if p1, 0 if p2
+		
+	cv::Mat p1_m1((int)msg->measurements.size()-2,1,CV_64F);
+	cv::Mat p2_m1((int)msg->measurements.size()-2,1,CV_64F); 
+	cv::reduce(results,p1_m1,1,CV_REDUCE_AVG,-1); //p(m=pf1) is N_1/N_T nearest neighbour prob	
+	//cout << p1_m1;
+	p2_m1 = 1-p1_m1; //p(m=pf2) is 1 - p(m=pf1)
+	
+	
+	// Chance of incorrect assignment, transition
+	cv::Mat p2_m = 0.6*p2_m1 + 0.2*p1_m1; 
+	cv::Mat p1_m = 0.6*p1_m1 + 0.2*p2_m1; 
+	// Normalise measurement proposals
+    p1_m = p1_m/cv::sum(p1_m)[0]; 
+    p2_m = p2_m/cv::sum(p2_m)[0];
+
+	// Create weights vectors
+	std::vector<double> p1(p1_m);
+	std::vector<double> p2(p2_m);
+		
+	// Propose  measurements using weights
+	std::vector<int> bins1 = pf1->resample(p1,numParticles);
+	std::vector<int> bins2 = pf2->resample(p2,numParticles);
+	
+	cv::Mat measurement1(6,numParticles,CV_64F);
+	cv::Mat measurement2(6,numParticles,CV_64F);
+	
+	for (int i = 0; i < numParticles; i++)
+	{
+		measurement1.at<double>(0,i) = msg->measurements[0].x;
+		measurement1.at<double>(1,i) = msg->measurements[0].y;
+		measurement1.at<double>(2,i) = measurements.at<float>(0,bins1[i]);
+		measurement1.at<double>(3,i) = measurements.at<float>(1,bins1[i]);
+		measurement1.at<double>(4,i) = msg->measurements[1].x;
+		measurement1.at<double>(5,i) = msg->measurements[1].y;
+		
+		// Draw measurements
+		//pt.x = measurement1.at<double>(2,i) ;
+		//pt.y = measurement1.at<double>(3,i);
+		//circle(image, pt, 2, Scalar(0,0,255), -1, 8);
+			
+		measurement2.at<double>(0,i) = msg->measurements[0].x;
+		measurement2.at<double>(1,i) = msg->measurements[0].y;
+		measurement2.at<double>(2,i) = measurements.at<float>(0,bins2[i]);
+		measurement2.at<double>(3,i) = measurements.at<float>(1,bins2[i]);
+		measurement2.at<double>(4,i) = msg->measurements[1].x;
+		measurement2.at<double>(5,i) = msg->measurements[1].y;
+		
+		// Draw measurements
+		//pt.x = measurement2.at<double>(2,i) ;
+		//pt.y = measurement2.at<double>(3,i);
+		//circle(image, pt, 2, Scalar(255,0,0), -1, 8);
+	}
+				
+	pf1->update(measurement1); // particle filter measurement left arm
+	pf2->update(measurement2); // particle filter measurement right arm
+}	
+
+	
 // perform particle filter update to estimate upper body joint positions
-void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg)
+void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const measurementproposals::HFPose2DArrayConstPtr& msg)
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
-	
-	if ((msg->valid[1])&&(msg->valid[0])) // Valid hand measurements
-	{
-		cv::Mat measurement1(6,1,CV_64F);
-		cv::Mat measurement2(6,1,CV_64F);
-		
-		cv::Mat hands = associateHands(msg); // Swap hands if necessary
-		
-		measurement1.at<double>(0,0) = msg->measurements[2].x;
-		measurement1.at<double>(1,0) = msg->measurements[2].y;
-		measurement1.at<double>(2,0) = hands.at<double>(0,0);
-		measurement1.at<double>(3,0) = hands.at<double>(1,0);
-		measurement1.at<double>(4,0) = msg->measurements[3].x;
-		measurement1.at<double>(5,0) = msg->measurements[3].y;
-		pf1->update(measurement1); // particle filter measurement left arm
-	
-		measurement2.at<double>(0,0) = msg->measurements[2].x;
-		measurement2.at<double>(1,0) = msg->measurements[2].y;
-		measurement2.at<double>(2,0) = hands.at<double>(2,0);
-		measurement2.at<double>(3,0) = hands.at<double>(3,0);
-		measurement2.at<double>(4,0) = msg->measurements[3].x;
-		measurement2.at<double>(5,0) = msg->measurements[3].y;
-		pf2->update(measurement2); // particle filter measurement right arm
-		
-		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
-		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
-		
-		cv::Mat p3D1 = get3Dpose(e1);
-		cv::Mat p3D2 = get3Dpose(e2);
-		
-		getProbImage(e1,e2);
 
-		// Publish tf tree for rviz
-		std::string strArr2[] = {"Left_Hand", "Left_Elbow", "Left_Shoulder"};
-		std::string strArr1[] = {"Right_Hand", "Right_Elbow", "Right_Shoulder"};
-		static tf::TransformBroadcaster br;
-		tf::Transform transform;
-		tf::Quaternion no_rot_quat;
-		no_rot_quat.setEuler(0.0,0.0,0.0);
-		transform.setRotation(no_rot_quat);
-		for (int k = 0; k < 2; k++)
-		{
-			transform.setOrigin(tf::Vector3(p3D1.at<double>(0,k) - p3D1.at<double>(0,k+1), p3D1.at<double>(2,k) - p3D1.at<double>(2,k+1), -p3D1.at<double>(1,k)+p3D1.at<double>(1,k+1)));
-			br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr1[k+1].c_str(), strArr1[k].c_str()));
-			transform.setOrigin(tf::Vector3(p3D2.at<double>(0,k) - p3D2.at<double>(0,k+1), p3D2.at<double>(2,k) - p3D2.at<double>(2,k+1), -p3D2.at<double>(1,k)+p3D2.at<double>(1,k+1)));
-			br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr2[k+1].c_str(), strArr2[k].c_str()));
-		}
+	update(msg,image);
+	
+	cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
+	cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
 		
-		double neck_x = (p3D1.at<double>(0,4) + p3D2.at<double>(0,4))/2.0;
-		double neck_y = (p3D1.at<double>(1,4) + p3D2.at<double>(1,4))/2.0;
-		double neck_z = (p3D1.at<double>(2,4) + p3D2.at<double>(2,4))/2.0;
-		double head_x = (p3D1.at<double>(0,3) + p3D2.at<double>(0,3))/2.0;
-		double head_y = (p3D1.at<double>(1,3) + p3D2.at<double>(1,3))/2.0;
-		double head_z = (p3D1.at<double>(2,3) + p3D2.at<double>(2,3))/2.0;
-				
-		transform.setOrigin(tf::Vector3(p3D1.at<double>(0,2) - neck_x, p3D1.at<double>(2,2) - neck_z, -p3D1.at<double>(1,2) + neck_y));
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Neck", strArr1[2].c_str()));
-		transform.setOrigin(tf::Vector3(p3D2.at<double>(0,2) - neck_x, p3D2.at<double>(2,2) - neck_z, -p3D2.at<double>(1,2) + neck_y));
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Neck", strArr2[2].c_str()));
-		transform.setOrigin(tf::Vector3(neck_x - head_x, neck_z - head_z, -neck_y + head_y));
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Head", "Neck"));
-		transform.setOrigin(tf::Vector3(head_x, head_z, -head_y));
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "Head"));
+	getProbImage(e1,e2);
+	publishTFtree(e1,e2);
+	publish2Dpos(e1,e2,msg);
 		
-		transform.setOrigin(tf::Vector3(-e1.at<double>(0,18), -e1.at<double>(0,20), e1.at<double>(0,19)));
-		tf::Quaternion cam_rot;
-		cam_rot.setEuler(-e1.at<double>(0,16),-e1.at<double>(0,17),-e1.at<double>(0,15));
-		transform.setRotation(cam_rot);
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "cam"));
-		
-		// Result vector arrangment	
-		// h       e     s       h       n
-		// 0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
-		
-		// Create result message
-		handBlobTracker::HFPose2D rosHands;
-		handBlobTracker::HFPose2DArray rosHandsArr;
-		rosHands.x = e1.at<double>(0,0);
-		rosHands.y = e1.at<double>(0,1);
-		rosHandsArr.names.push_back("Left Hand");
-		rosHandsArr.measurements.push_back(rosHands); //hand1
-		rosHands.x = e2.at<double>(0,0);
-		rosHands.y = e2.at<double>(0,1);
-		rosHandsArr.names.push_back("Right Hand");
-		rosHandsArr.measurements.push_back(rosHands); //hand2
-		rosHands.x = 0.5*(e1.at<double>(0,9) + e2.at<double>(0,9));
-		rosHands.y = 0.5*(e1.at<double>(0,10) + e2.at<double>(0,10));
-		rosHandsArr.names.push_back("Head");
-		rosHandsArr.measurements.push_back(rosHands); //head
-		rosHands.x = 0.5*(e1.at<double>(0,12) + e2.at<double>(0,12));
-		rosHands.y = 0.5*(e1.at<double>(0,13) + e2.at<double>(0,13));
-		rosHandsArr.names.push_back("Neck");
-		rosHandsArr.measurements.push_back(rosHands); //Neck
-		rosHands.x = e1.at<double>(0,3);
-		rosHands.y = e1.at<double>(0,4);
-		rosHandsArr.names.push_back("Left Elbow");
-		rosHandsArr.measurements.push_back(rosHands); //elbow1
-		rosHands.x = e2.at<double>(0,3);
-		rosHands.y = e2.at<double>(0,4);
-		rosHandsArr.names.push_back("Right Elbow");
-		rosHandsArr.measurements.push_back(rosHands); //elbow2
-		rosHands.x = e1.at<double>(0,6);
-		rosHands.y = e1.at<double>(0,7);
-		rosHandsArr.names.push_back("Left Shoulder");
-		rosHandsArr.measurements.push_back(rosHands); //Shoulder1
-		rosHands.x = e2.at<double>(0,6);
-		rosHands.y = e2.at<double>(0,7);
-		rosHandsArr.names.push_back("Right Shoulder");
-		rosHandsArr.measurements.push_back(rosHands); //Shoulder2
-		
-		// Edge-based sanity check on pose
-		cv::Mat edge_image = cv::Mat::zeros(image.rows,image.cols,CV_8UC3);
-		bool val = edgePoseCorrection(image,rosHandsArr,edge_image);
-		//Publish edge correction results
-		cv_bridge::CvImage img_edge;
-		img_edge.header = immsg->header;
-		img_edge.encoding = "rgb8";
-		img_edge.image = edge_image;
-		edge_pub.publish(img_edge.toImageMsg()); // publish result image
-		if (!val) // Reset trackers if tracking failure
-		{
-			ROS_DEBUG("Resetting trackers");
-			pf1->gmm.resetTracker(h1_pca.rows);
-			pf2->gmm.resetTracker(h2_pca.rows);
-			swap = !swap;
-			edge_heuristic = 2e-1;
-			//circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
-			//circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-			//circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-			////line(image, Point(msg->measurements[2].x-5,msg->measurements[2].y+20), Point(msg->measurements[2].x+5,msg->measurements[2].y+20), Scalar(0, 0, 0), 5, 8,0);
-			//ellipse(image,Point(msg->measurements[2].x,msg->measurements[2].y+25), Size(20,15),0,-180,0, Scalar(0, 0, 0), 5, 8,0);
-		}
-		else
-		{
-			// Draw stick man on result image
-			int i;
-			int col[3] = {0, 125, 255};
-			for (i = 0; i < 2; i++)
-			{
-				line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
-				line(image, Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*(i+1)),e2.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
-			}
-			//circle(image,Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)),50,Scalar(255, 255, 255), -5, 8,0);
-			//circle(image,Point(e1.at<double>(0,3*(i+1))-10,e1.at<double>(0,3*(i+1)+1)-10),5,Scalar(0, 0, 0), -5, 8,0);
-			//circle(image,Point(e1.at<double>(0,3*(i+1))+10,e1.at<double>(0,3*(i+1)+1)-10),5,Scalar(0, 0, 0), -5, 8,0);
-			line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Scalar(0, 255, 0), 5, 8,0);
-			line(image, Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Point(e1.at<double>(0,3*(i+2)),e1.at<double>(0,3*(i+2)+1)), Scalar(255, 0, 0), 5, 8,0);
-			
-		}
-		
-		for (int i = 0; i < 8; i++)
-		{	
-			rosHandsArr.valid.push_back(val);
-		}
-		rosHandsArr.header = msg->header;
-		rosHandsArr.id = msg->id;
-		hand_pub.publish(rosHandsArr);
-	}
-	else
+	// Draw stick man on result image
+	// Result vector arrangment	
+	// h       e     s       h       n
+	// 0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
+	int i;
+	int col[3] = {0, 125, 255};
+	for (i = 0; i < 2; i++)
 	{
-		ROS_DEBUG("Resetting trackers");
-		pf1->gmm.resetTracker(h1_pca.rows);
-		pf2->gmm.resetTracker(h2_pca.rows);
-		swap = false;
-		edge_heuristic = 2e-1;
-		
-		//Publish zeros
-		handBlobTracker::HFPose2D rosHands;
-		handBlobTracker::HFPose2DArray rosHandsArr;
-		rosHands.x = 0;
-		rosHands.y = 0;
-		rosHandsArr.names.push_back("Left Hand");
-		rosHandsArr.names.push_back("Right Hand");
-		rosHandsArr.names.push_back("Head");
-		rosHandsArr.names.push_back("Neck");
-		rosHandsArr.names.push_back("Left Elbow");
-		rosHandsArr.names.push_back("Right Elbow");
-		rosHandsArr.names.push_back("Left Shoulder");
-		rosHandsArr.names.push_back("Right Shoulder");
-		for (int i = 0; i < 8; i++)
-		{
-			rosHandsArr.measurements.push_back(rosHands);
-			rosHandsArr.valid.push_back(false);
-		}
-		rosHandsArr.header = msg->header;
-		rosHandsArr.id = "0";
-		hand_pub.publish(rosHandsArr);
-		//circle(image,Point(msg->measurements[2].x,msg->measurements[2].y),50,Scalar(255, 255, 255), -5, 8,0);
-		//circle(image,Point(msg->measurements[2].x-10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-		//circle(image,Point(msg->measurements[2].x+10,msg->measurements[2].y-10),5,Scalar(0, 0, 0), -5, 8,0);
-		//ellipse(image,Point(msg->measurements[2].x,msg->measurements[2].y+25), Size(20,15),0,-180,0, Scalar(0, 0, 0), 5, 8,0);
-		//line(image, Point(msg->measurements[2].x-5,msg->measurements[2].y+20), Point(msg->measurements[2].x+5,msg->measurements[2].y+20), Scalar(0, 0, 0), 5, 8,0);
+		line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
+		line(image, Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*(i+1)),e2.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
 	}
-
+	line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Scalar(0, 255, 0), 5, 8,0);
+	line(image, Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Point(e1.at<double>(0,3*(i+2)),e1.at<double>(0,3*(i+2)+1)), Scalar(255, 0, 0), 5, 8,0);
+	
 	cv_bridge::CvImage img2;
 	img2.header = immsg->header;
 	img2.encoding = "rgb8";
 	img2.image = image;			
-	pub.publish(img2.toImageMsg()); // publish result image
-		
+	pub.publish(img2.toImageMsg()); // publish result image	
 }

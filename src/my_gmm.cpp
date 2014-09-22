@@ -11,6 +11,7 @@ state_params::~state_params()
 state_params::state_params(const state_params& other)
 {
 	state = other.state.clone();
+	measurement = other.measurement.clone();
 	cov = other.cov.clone();
 	weight = other.weight;
 }
@@ -34,10 +35,12 @@ void my_gmm::resetTracker(int d)
 	{
 		state_params temp;
 		temp.state = cv::Mat::zeros(d,1,CV_64F);
-		randu(temp.state,1,480);
+		temp.measurement = cv::Mat::zeros(2,1,CV_64F);
+		randu(temp.state,1,640);
+		randu(temp.measurement,1,640);
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);
 		temp.weight = 1.0/(double)nParticles;
-		setIdentity(temp.cov, cv::Scalar::all(1000));
+		setIdentity(temp.cov, cv::Scalar::all(10000));
 		tracks.push_back(temp);
 	}
 }

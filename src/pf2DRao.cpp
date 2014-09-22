@@ -41,12 +41,28 @@ cv::Mat ParticleFilter::getEstimator()
 	return estimate;
 }
 
+cv::Mat ParticleFilter::chol(cv::Mat in)
+{
+	cv::Mat sigma_i = in.clone();
+	if (Cholesky(sigma_i.ptr<double>(), sigma_i.step, sigma_i.cols, 0, 0, 0))
+	{
+		Mat diagElem = sigma_i.diag();
+		for (int e = 0; e < diagElem.rows; ++e)
+		{
+			double elem = diagElem.at<double>(e);
+			sigma_i.row(e) *= elem;
+			sigma_i.at<double>(e,e) = 1.0f / elem;
+		}
+	}
+	return sigma_i;
+}
+
 // Evaulate multivariate gaussian - measurement model
 double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
-	cv::Mat sigma_i;
-	invert(sigma,sigma_i,DECOMP_CHOLESKY);
-	cv::Mat x_u = (x - repeat(u,1,x.cols)).t()*sigma_i;
+	cv::Mat sigma_i = chol(sigma);
+	//invert(sigma,sigma_i,DECOMP_CHOLESKY);
+	cv::Mat x_u = (x - repeat(u,1,x.cols)).t()*sigma_i.inv();
 	cv::Mat temp;
 	cv::log(sigma_i.diag(0),temp);
 	double logSqrtDetSigma = cv::sum(temp)[0];
@@ -57,9 +73,8 @@ double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 
 cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
-	cv::Mat sigma_i;
-	invert(sigma,sigma_i,DECOMP_CHOLESKY);
-	cv::Mat x_u = (x - repeat(u,1,x.cols)).t()*sigma_i;
+	cv::Mat sigma_i = chol(sigma);
+	cv::Mat x_u = (x - repeat(u,1,x.cols)).t()*sigma_i.inv();
 	cv::Mat temp;
 	cv::log(sigma_i.diag(0),temp);
 	double logSqrtDetSigma;
@@ -98,6 +113,17 @@ cv::Mat ParticleFilter::getProbMap(cv::Mat H, cv::Mat M)
 	return output;
 }
 
+cv::Mat ParticleFilter::getPreviousHandMeasurements()
+{
+	cv::Mat measurements(2,(int)gmm.tracks.size(),CV_64F);
+	for (int i = 0; i < (int)gmm.tracks.size(); i++)
+	{
+		measurements.at<double>(0,i) = gmm.tracks[i].measurement.at<double>(0,0);
+		measurements.at<double>(1,i) = gmm.tracks[i].measurement.at<double>(1,0);
+	}
+	return measurements;
+}
+
 // Update stage
 void ParticleFilter::update(cv::Mat measurement)
 {
@@ -113,9 +139,11 @@ void ParticleFilter::update(cv::Mat measurement)
 	{
 		i = indicators[j];
 		gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov);
-		weights.push_back(mvnpdf(measurement,gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
+		weights.push_back(mvnpdf(measurement.col(j),gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
 		wsum = wsum + weights[j];
-		gmm.KFtracker[i].update(measurement,gmm.tracks[j].state,gmm.tracks[j].cov);
+		//cout << weights[j] << " ";
+		gmm.KFtracker[i].update(measurement.col(j),gmm.tracks[j].state,gmm.tracks[j].cov);
+		measurement(Range(2,4),Range(j,j+1)).copyTo(gmm.tracks[j].measurement);
 		temp.push_back(gmm.tracks[j]);
 	}
 		
@@ -123,6 +151,8 @@ void ParticleFilter::update(cv::Mat measurement)
 	{
 		weights[i] = weights[i]/wsum;
 	}
+	
+	
 		
 	// Re-sample tracks
 	indicators.clear();
@@ -153,10 +183,11 @@ std::vector<int> ParticleFilter::resample(std::vector<double> weights, int N)
 {
 	int L = weights.size();
 	std::vector<int> indicators;
-	int idx = rand() % L;
+	cv::RNG rng(cv::getTickCount());
+	int idx = rng.uniform(0, L);
 	double beta = 0.0;
 	double mw = maxWeight(weights);
-	cv::RNG rng(cv::getTickCount());
+	
 	if (mw == 0)
 	{
 		weights.clear();
