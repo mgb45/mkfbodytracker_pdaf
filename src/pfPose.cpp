@@ -53,7 +53,7 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-    numParticles = 80;
+    numParticles = 250;
     d = h1_pca.rows;
 	pf1 = new ParticleFilter(d,numParticles); // left arm pf
 	pf2 = new ParticleFilter(d,numParticles); // right arm pf
@@ -271,8 +271,8 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 	
 	
 	// Chance of incorrect assignment, transition
-	cv::Mat p2_m = 0.6*p2_m1 + 0.2*p1_m1; 
-	cv::Mat p1_m = 0.6*p1_m1 + 0.2*p2_m1; 
+	cv::Mat p2_m = 0.95*p2_m1 + 0.05*p1_m1; 
+	cv::Mat p1_m = 0.95*p1_m1 + 0.05*p2_m1; 
 	// Normalise measurement proposals
     p1_m = p1_m/cv::sum(p1_m)[0]; 
     p2_m = p2_m/cv::sum(p2_m)[0];
