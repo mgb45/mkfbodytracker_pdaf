@@ -41,17 +41,23 @@ cv::Mat ParticleFilter::getEstimator()
 	return estimate;
 }
 
+
 cv::Mat ParticleFilter::chol(cv::Mat in)
 {
 	cv::Mat sigma_i = in.clone();
 	if (Cholesky(sigma_i.ptr<double>(), sigma_i.step, sigma_i.cols, 0, 0, 0))
 	{
-		Mat diagElem = sigma_i.diag();
+		cv::Mat diagElem = sigma_i.diag();
 		for (int e = 0; e < diagElem.rows; ++e)
 		{
 			double elem = diagElem.at<double>(e);
 			sigma_i.row(e) *= elem;
-			sigma_i.at<double>(e,e) = 1.0f / elem;
+			sigma_i.at<double>(e,e) = 1.0 / elem;
+			if (e > 0)
+			{
+				cv::Mat z = cv::Mat::zeros(sigma_i.rows-e,1,CV_64F);
+				z.copyTo(sigma_i.diag(-e));
+			}
 		}
 	}
 	return sigma_i;
@@ -60,16 +66,17 @@ cv::Mat ParticleFilter::chol(cv::Mat in)
 // Evaulate multivariate gaussian - measurement model
 double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
-	cv::Mat sigma_i = chol(sigma);
-	//invert(sigma,sigma_i,DECOMP_CHOLESKY);
-	cv::Mat x_u = (x - repeat(u,1,x.cols)).t()*sigma_i.inv();
+	cv::Mat R = chol(sigma);
+	cv::Mat x_u = (x - u).t()*R.inv();
 	cv::Mat temp;
-	cv::log(sigma_i.diag(0),temp);
+	cv::log(R.diag(0),temp);
 	double logSqrtDetSigma = cv::sum(temp)[0];
 	cv::pow(x_u,2,temp);
-	double quadform = cv::sum(x_u)[0];
-	return (exp(-0.5*quadform - logSqrtDetSigma - x.rows*log(2*M_PI)/2));
+	reduce(temp,temp,1,CV_REDUCE_SUM,-1);
+	double quadform = temp.at<double>(0,0);
+	return (exp(-0.5*quadform - logSqrtDetSigma - x.rows*log(2.0*M_PI)/2.0));
 }
+
 
 cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
