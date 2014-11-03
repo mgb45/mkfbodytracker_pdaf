@@ -22,11 +22,11 @@ PFTracker::PFTracker()
 	// Load Kinect GMM priorsexi
 	std::stringstream ss1;
 	std::string left_arm_training;
-	ros::param::param<std::string>("left_arm_training", left_arm_training, "/training/data13D_PCA_100000_29_13.yml");
+	ros::param::param<std::string>("left_arm_training", left_arm_training, "/data13D_PCA_100000_25_10.yml");
 	ss1 << ros::package::getPath("mkfbodytracker_pdaf") << left_arm_training;
 	std::stringstream ss2;
 	std::string right_arm_training;
-	ros::param::param<std::string>("right_arm_training", right_arm_training, "/training/data23D_PCA_100000_29_13.yml");
+	ros::param::param<std::string>("right_arm_training", right_arm_training, "/data23D_PCA_100000_25_10.yml");
 	ss2 << ros::package::getPath("mkfbodytracker_pdaf") << right_arm_training;
 	ROS_INFO("Getting data from %s",ss1.str().c_str());
 	ROS_INFO("Getting data from %s",ss2.str().c_str());
@@ -53,7 +53,7 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-    numParticles = 250;
+    numParticles = 100;
     d = h1_pca.rows;
 	pf1 = new ParticleFilter(d,numParticles); // left arm pf
 	pf2 = new ParticleFilter(d,numParticles); // right arm pf
@@ -255,13 +255,14 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 	cv::Mat measurements(2,(int)msg->measurements.size()-2,CV_32F);
 	for (int i = 2; i < (int)msg->measurements.size(); i++) // Start at idx 2 since 1st 2 are head and neck
 	{
-		measurements.at<float>(0,i) = (float)msg->measurements[i].x;
-		measurements.at<float>(1,i) = (float)msg->measurements[i].y;
+		measurements.at<float>(0,i-2) = (float)msg->measurements[i].x;
+		measurements.at<float>(1,i-2) = (float)msg->measurements[i].y;
 	}
-	
+		
 	// Approximate p(m=A) as N_A/N_T nearest neighbour prob			
 	int K = 50;
 	cv::Mat results = knnProb(m1,m2,measurements,K); // results is length(measurements) x K, 1 if p1, 0 if p2
+	//cout << results << std::endl;
 		
 	cv::Mat p1_m1((int)msg->measurements.size()-2,1,CV_64F);
 	cv::Mat p2_m1((int)msg->measurements.size()-2,1,CV_64F); 
@@ -271,8 +272,8 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 	
 	
 	// Chance of incorrect assignment, transition
-	cv::Mat p2_m = 0.95*p2_m1 + 0.05*p1_m1; 
-	cv::Mat p1_m = 0.95*p1_m1 + 0.05*p2_m1; 
+	cv::Mat p2_m = 0.999*p2_m1 + 0.0005*p1_m1; 
+	cv::Mat p1_m = 0.999*p1_m1 + 0.0005*p2_m1; 
 	// Normalise measurement proposals
     p1_m = p1_m/cv::sum(p1_m)[0]; 
     p2_m = p2_m/cv::sum(p2_m)[0];
@@ -290,6 +291,7 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 	
 	for (int i = 0; i < numParticles; i++)
 	{
+
 		measurement1.at<double>(0,i) = msg->measurements[0].x;
 		measurement1.at<double>(1,i) = msg->measurements[0].y;
 		measurement1.at<double>(2,i) = measurements.at<float>(0,bins1[i]);
@@ -324,30 +326,46 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const measurementproposals::HFPose2DArrayConstPtr& msg)
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
-
-	update(msg,image);
 	
-	cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
-	cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
-		
-	getProbImage(e1,e2);
-	publishTFtree(e1,e2);
-	publish2Dpos(e1,e2,msg);
-		
-	// Draw stick man on result image
-	// Result vector arrangment	
-	// h       e     s       h       n
-	// 0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
-	int i;
-	int col[3] = {0, 125, 255};
-	for (i = 0; i < 2; i++)
+	if ((msg->id.compare("0")!=0)&&((int)msg->measurements.size()>2))
 	{
-		line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
-		line(image, Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*(i+1)),e2.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
+		update(msg,image);
+		
+		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
+		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
+			
+		getProbImage(e1,e2);
+		publishTFtree(e1,e2);
+		publish2Dpos(e1,e2,msg);
+			
+		// Draw stick man on result image
+		// Result vector arrangment	
+		// h       e     s       h       n
+		// 0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
+		int i;
+		int col[3] = {0, 125, 255};
+		for (i = 0; i < 2; i++)
+		{
+			line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
+			line(image, Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*(i+1)),e2.at<double>(0,3*(i+1)+1)), Scalar(col[i], 255, col[2-i]), 5, 8,0);
+		}
+		line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Scalar(0, 255, 0), 5, 8,0);
+		line(image, Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Point(e1.at<double>(0,3*(i+2)),e1.at<double>(0,3*(i+2)+1)), Scalar(255, 0, 0), 5, 8,0);
 	}
-	line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Scalar(0, 255, 0), 5, 8,0);
-	line(image, Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Point(e1.at<double>(0,3*(i+2)),e1.at<double>(0,3*(i+2)+1)), Scalar(255, 0, 0), 5, 8,0);
-	
+	else
+	{
+		measurementproposals::HFPose2D rosHands;
+		measurementproposals::HFPose2DArray rosHandsArr;
+		rosHands.x = 0;
+		rosHands.y = 0;
+		for (int i = 0; i < 8; i++)
+		{
+			rosHandsArr.measurements.push_back(rosHands);
+		}
+		rosHandsArr.header = msg->header;
+		rosHandsArr.id = "0";
+		hand_pub.publish(rosHandsArr);
+	}
 	cv_bridge::CvImage img2;
 	img2.header = immsg->header;
 	img2.encoding = "rgb8";
