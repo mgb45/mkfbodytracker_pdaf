@@ -120,19 +120,18 @@ cv::Mat ParticleFilter::getProbMap(cv::Mat H, cv::Mat M)
 	return output;
 }
 
-cv::Mat ParticleFilter::getPreviousHandMeasurements()
+std::vector<int> ParticleFilter::getPreviousHandBins()
 {
-	cv::Mat measurements(2,(int)gmm.tracks.size(),CV_64F);
+	std::vector<int> bins;
 	for (int i = 0; i < (int)gmm.tracks.size(); i++)
 	{
-		measurements.at<double>(0,i) = gmm.tracks[i].measurement.at<double>(0,0);
-		measurements.at<double>(1,i) = gmm.tracks[i].measurement.at<double>(1,0);
+		bins.push_back(gmm.tracks[i].bins);
 	}
-	return measurements;
+	return bins;
 }
 
 // Update stage
-void ParticleFilter::update(cv::Mat measurement)
+void ParticleFilter::update(cv::Mat measurement, 	std::vector<int> bins)
 {
 	// Propose indicators
 	
@@ -151,6 +150,7 @@ void ParticleFilter::update(cv::Mat measurement)
 		//cout << weights[j] << " ";
 		gmm.KFtracker[i].update(measurement.col(j),gmm.tracks[j].state,gmm.tracks[j].cov);
 		measurement(Range(2,4),Range(j,j+1)).copyTo(gmm.tracks[j].measurement);
+		gmm.tracks[j].bins = bins[j];
 		temp.push_back(gmm.tracks[j]);
 	}
 		
@@ -158,8 +158,6 @@ void ParticleFilter::update(cv::Mat measurement)
 	{
 		weights[i] = weights[i]/wsum;
 	}
-	
-	
 		
 	// Re-sample tracks
 	indicators.clear();

@@ -36,6 +36,7 @@ void my_gmm::resetTracker(int d)
 		state_params temp;
 		temp.state = cv::Mat::zeros(d,1,CV_64F);
 		temp.measurement = cv::Mat::zeros(2,1,CV_64F);
+		temp.bins = rand()%1;
 		randu(temp.state,1,640);
 		randu(temp.measurement,1,640);
 		temp.cov = cv::Mat::zeros(d,d,CV_64F);

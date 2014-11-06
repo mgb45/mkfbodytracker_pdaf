@@ -235,21 +235,23 @@ cv::Mat PFTracker::knnProb(cv::Mat m1, cv::Mat m2, cv::Mat measurements,int K)
 void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, cv::Mat image)
 {
 	// Get resampled measurements from pfs p(A_{t-1}|z_{1:t-1})
-	cv::Mat m1 = pf1->getPreviousHandMeasurements();
-	cv::Mat m2 = pf2->getPreviousHandMeasurements();
-	Point pt;
+	std::vector<int> m1 = pf1->getPreviousHandBins();
+	std::vector<int> m2 = pf2->getPreviousHandBins();
+	double pp1, pp2;
 	for (int i = 0; i < numParticles; i++)
 	{
-		// Draw measurements
-		pt.x = m1.at<double>(0,i) ;
-		pt.y = m1.at<double>(1,i);
-		circle(image, pt, 2, Scalar(0,0,255), -1, 8);
-			
-		// Draw measurements
-		pt.x = m2.at<double>(0,i) ;
-		pt.y = m2.at<double>(1,i);
-		circle(image, pt, 2, Scalar(255,0,0), -1, 8);
+		if (m1[i]==0)
+		{
+			pp1 = pp1+1.0;
+		}
+		
+		if (m2[i]==0)
+		{
+			pp2 = pp2+1.0;
+		}
 	}
+	pp1 = pp1/(double)numParticles;
+	pp2 = pp2/(double)numParticles;
 	
 	// Package new measurements into matrix
 	cv::Mat measurements(2,(int)msg->measurements.size()-2,CV_32F);
@@ -260,15 +262,21 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 	}
 		
 	// Approximate p(m=A) as N_A/N_T nearest neighbour prob			
-	int K = 50;
-	cv::Mat results = knnProb(m1,m2,measurements,K); // results is length(measurements) x K, 1 if p1, 0 if p2
+	//int K = 50;
+	//cv::Mat results = knnProb(m1,m2,measurements,K); // results is length(measurements) x K, 1 if p1, 0 if p2
 	//cout << results << std::endl;
 		
-	cv::Mat p1_m1((int)msg->measurements.size()-2,1,CV_64F);
-	cv::Mat p2_m1((int)msg->measurements.size()-2,1,CV_64F); 
-	cv::reduce(results,p1_m1,1,CV_REDUCE_AVG,-1); //p(m=pf1) is N_1/N_T nearest neighbour prob	
+	cv::Mat p1_m1(2,1,CV_64F);
+	cv::Mat p2_m1(2,1,CV_64F); 
+	
+	p1_m1.at<double>(0,0) = pp1;
+	p1_m1.at<double>(1,0) = 1-pp1;
+	
+	p2_m1.at<double>(0,0) = pp2;
+	p2_m1.at<double>(1,0) = 1-pp2;
+	//cv::reduce(results,p1_m1,1,CV_REDUCE_AVG,-1); //p(m=pf1) is N_1/N_T nearest neighbour prob	
 	//cout << p1_m1;
-	p2_m1 = 1-p1_m1; //p(m=pf2) is 1 - p(m=pf1)
+	//p2_m1 = 1-p1_m1; //p(m=pf2) is 1 - p(m=pf1)
 	
 	
 	// Chance of incorrect assignment, transition
@@ -291,7 +299,6 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 	
 	for (int i = 0; i < numParticles; i++)
 	{
-
 		measurement1.at<double>(0,i) = msg->measurements[0].x;
 		measurement1.at<double>(1,i) = msg->measurements[0].y;
 		measurement1.at<double>(2,i) = measurements.at<float>(0,bins1[i]);
@@ -317,8 +324,8 @@ void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, c
 		//circle(image, pt, 2, Scalar(255,0,0), -1, 8);
 	}
 				
-	pf1->update(measurement1); // particle filter measurement left arm
-	pf2->update(measurement2); // particle filter measurement right arm
+	pf1->update(measurement1,bins1); // particle filter measurement left arm
+	pf2->update(measurement2,bins2); // particle filter measurement right arm
 }	
 
 	
@@ -327,7 +334,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const measurem
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
 	
-	if ((msg->id.compare("0")!=0)&&((int)msg->measurements.size()>2))
+	if ((msg->id.compare("0")!=0)&&((int)msg->measurements.size()>3))
 	{
 		update(msg,image);
 		

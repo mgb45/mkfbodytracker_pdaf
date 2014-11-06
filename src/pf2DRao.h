@@ -15,10 +15,10 @@ class ParticleFilter
 	public:
 		ParticleFilter(int states, int nParticles);
 		~ParticleFilter();		
-		void update(cv::Mat measurement);
+		void update(cv::Mat measurement, std::vector<int> bins);
 		cv::Mat getEstimator();
 		cv::Mat getProbMap(cv::Mat H, cv::Mat M);
-		cv::Mat getPreviousHandMeasurements();
+		std::vector<int> getPreviousHandBins();
 		my_gmm gmm;
 		std::vector<int> resample(std::vector<double> weights, int N);
 	protected:
