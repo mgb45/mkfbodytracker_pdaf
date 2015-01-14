@@ -9,9 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/pfBodyTracker</url>
   <depend package="roscpp"/>
-  <depend package="opencv2"/>
   <depend package="roscpp"/>
-  <depend package="opencv2"/>
   <depend package="cv_bridge"/>
   <depend package="sensor_msgs"/>
   <depend package="std_msgs"/>
