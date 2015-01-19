@@ -53,7 +53,7 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-    numParticles = 100;
+    numParticles = 150;
     d = h1_pca.rows;
 	pf1 = new ParticleFilter(d,numParticles); // left arm pf
 	pf2 = new ParticleFilter(d,numParticles); // right arm pf
@@ -151,10 +151,10 @@ void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
 	transform.setRotation(no_rot_quat);
 	for (int k = 0; k < 2; k++)
 	{
-	transform.setOrigin(tf::Vector3(p3D1.at<double>(0,k) - p3D1.at<double>(0,k+1), p3D1.at<double>(2,k) - p3D1.at<double>(2,k+1), -p3D1.at<double>(1,k)+p3D1.at<double>(1,k+1)));
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr1[k+1].c_str(), strArr1[k].c_str()));
-	transform.setOrigin(tf::Vector3(p3D2.at<double>(0,k) - p3D2.at<double>(0,k+1), p3D2.at<double>(2,k) - p3D2.at<double>(2,k+1), -p3D2.at<double>(1,k)+p3D2.at<double>(1,k+1)));
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr2[k+1].c_str(), strArr2[k].c_str()));
+		transform.setOrigin(tf::Vector3(p3D1.at<double>(0,k) - p3D1.at<double>(0,k+1), p3D1.at<double>(2,k) - p3D1.at<double>(2,k+1), -p3D1.at<double>(1,k)+p3D1.at<double>(1,k+1)));
+		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr1[k+1].c_str(), strArr1[k].c_str()));
+		transform.setOrigin(tf::Vector3(p3D2.at<double>(0,k) - p3D2.at<double>(0,k+1), p3D2.at<double>(2,k) - p3D2.at<double>(2,k+1), -p3D2.at<double>(1,k)+p3D2.at<double>(1,k+1)));
+		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr2[k+1].c_str(), strArr2[k].c_str()));
 	}
 
 	double neck_x = (p3D1.at<double>(0,4) + p3D2.at<double>(0,4))/2.0;
@@ -334,7 +334,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const measurem
 		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
 		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
 			
-		getProbImage(e1,e2);
+		//getProbImage(e1,e2);
 		publishTFtree(e1,e2);
 		publish2Dpos(e1,e2,msg);
 			
