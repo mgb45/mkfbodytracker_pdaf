@@ -1,7 +1,7 @@
 <launch>
   <!-- Play video file using gscam -->
  
-  <arg name="FILENAME" default="/home/mgb45/Downloads/BKvideo2.mpeg"/>
+  <arg name="FILENAME" default="/opt/ChaLearn/validation1/Sample00425/Sample00425_color"/>
   <arg name="LOOP" default="false"/>
   <arg name="SAVE" default="false"/>
 
@@ -14,8 +14,8 @@
     <param name="reopen_on_eof" value="$(arg LOOP)"/>
   </node>
 
-  <arg name="file1" default="/data13D_PCA_100000_8_10.yml"/>
-  <arg name="file2" default="/data23D_PCA_100000_8_10.yml"/>
+  <arg name="file1" default="/data13D_PCA_100000_25_12.yml"/>
+  <arg name="file2" default="/data23D_PCA_100000_25_12.yml"/>
   <arg name="dir_ims" default="/tmp/"/>
 
   <param name="left_arm_training" value="$(arg file1)"/>
@@ -25,8 +25,8 @@
 	<remap from="image" to="/camera/image_raw"/>
   </node>
 
-  <!--node pkg="measurementproposals" type="handTracker" name="handTracker" output="screen"-->
-  <node pkg="handBlobTracker" type="handTracker" name="handTracker" output="screen">
+<!--  <node pkg="measurementproposals" type="handTracker" name="handTracker" output="screen"-->
+   <node pkg="handBlobTracker" type="handTracker" name="handTracker" output="screen">
 	<remap from="/rgb/image_color" to="/camera/image_raw"/>
   </node>
 
@@ -47,11 +47,11 @@
 
 <!--  <node pkg="image_view" type="image_view" name ="im0">
 	<remap from="image" to ="camera/image_raw"/>
-  </node>
+  </node>-->
 
   <node pkg="image_view" type="image_view" name ="im2">
-	<remap from="image" to ="outputImage"/>
-  </node> -->
+	<remap from="image" to ="probImage"/>
+  </node>
 
   <node pkg="image_view" type="image_view" name ="im3">
         <remap from="image" to ="likelihood"/>

@@ -8,18 +8,18 @@ PFTracker::PFTracker()
 {
 	image_transport::ImageTransport it(nh);
 	
-	pub = it.advertise("/poseImage",10);
-	edge_pub = it.advertise("/handImage",10);
-	prob_pub = it.advertise("/probImage",10);
+	pub = it.advertise("/poseImage",1);
+	prob_pub = it.advertise("/probImage",1);
 	hand_pub = nh.advertise<measurementproposals::HFPose2DArray>("/correctedFaceHandPose", 10);
 		
-	image_sub.subscribe(nh, "/rgb/image_raw", 1);
-	pose_sub.subscribe(nh, "/faceHandPose", 1); 
+	image_sub.subscribe(nh, "/rgb/image_raw", 5);
+	likelihood_sub.subscribe(nh, "/likelihood", 5);
+	pose_sub.subscribe(nh, "/faceROIs", 10); 
 		
-	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, measurementproposals::HFPose2DArray>(image_sub,pose_sub,20);
-	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2));
+	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, faceTracking::ROIArray>(image_sub,likelihood_sub,pose_sub,20);
+	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2, _3));
 	
-	// Load Kinect GMM priorsexi
+	// Load Kinect GMM priors
 	std::stringstream ss1;
 	std::string left_arm_training;
 	ros::param::param<std::string>("left_arm_training", left_arm_training, "/data13D_PCA_100000_25_10.yml");
@@ -53,7 +53,7 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-    numParticles = 150;
+    numParticles = 100;
     d = h1_pca.rows;
 	pf1 = new ParticleFilter(d,numParticles); // left arm pf
 	pf2 = new ParticleFilter(d,numParticles); // right arm pf
@@ -63,6 +63,7 @@ PFTracker::PFTracker()
 		pf2->gmm.loadGaussian(means1.row(i),covs1(Range(covs1.cols*i,covs1.cols*(i+1)),Range(0,covs1.cols)), h1_pca, m1_pca, weights1.at<double>(0,i), g1.at<double>(0,i));
 		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)), h2_pca, m2_pca, weights2.at<double>(0,i), g2.at<double>(0,i));
 	}
+	
 }
 
 PFTracker::~PFTracker()
@@ -180,7 +181,7 @@ void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
 	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "cam"));
 }
 
-void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const measurementproposals::HFPose2DArrayConstPtr& msg)
+void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArrayConstPtr& msg)
 {
 	// Create result message
 	measurementproposals::HFPose2D rosHands;
@@ -211,137 +212,121 @@ void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const measurementproposals::
 	rosHandsArr.measurements.push_back(rosHands); //Shoulder2
 		
 	rosHandsArr.header = msg->header;
-	rosHandsArr.id = msg->id;
+	rosHandsArr.id = msg->ids[0];
 	hand_pub.publish(rosHandsArr);
 }
 
-cv::Mat PFTracker::knnProb(cv::Mat m1, cv::Mat m2, cv::Mat measurements,int K)
+void PFTracker::update(const std::vector<int> binsL, const std::vector<int> binsR, const faceTracking::ROIArrayConstPtr& msg, cv::Mat image)
 {
-	cv::Mat m,mf;
-	hconcat(m1, m2, m);
-	cv::Mat labels1 = cv::Mat::ones(1,m1.cols,CV_32S);
-	cv::Mat labels2 = cv::Mat::zeros(1,m2.cols,CV_32S);
-	cv::Mat labels;
-	hconcat(labels1, labels2, labels);
-	m.convertTo(mf,CV_32F,1,0);
-	CvKNearest knn(mf.t(),labels.t(),cv::Mat(),false,K);
-	
-	cv::Mat results;
-	knn.find_nearest(measurements.t(),K,0,0,&results,0);
-	
-	return results;
-}
-
-void PFTracker::update(const measurementproposals::HFPose2DArrayConstPtr& msg, cv::Mat image)
-{
-	// Get resampled measurements from pfs p(A_{t-1}|z_{1:t-1})
-	cv::Mat m1 = pf1->getPreviousHandMeasurements();
-	cv::Mat m2 = pf2->getPreviousHandMeasurements();
-	Point pt;
-	for (int i = 0; i < numParticles; i++)
-	{
-		// Draw measurements
-		pt.x = m1.at<double>(0,i) ;
-		pt.y = m1.at<double>(1,i);
-		circle(image, pt, 2, Scalar(0,0,255), -1, 8);
-			
-		// Draw measurements
-		pt.x = m2.at<double>(0,i) ;
-		pt.y = m2.at<double>(1,i);
-		circle(image, pt, 2, Scalar(255,0,0), -1, 8);
-	}
-	
 	// Package new measurements into matrix
-	cv::Mat measurements(2,(int)msg->measurements.size()-2,CV_32F);
-	for (int i = 2; i < (int)msg->measurements.size(); i++) // Start at idx 2 since 1st 2 are head and neck
-	{
-		measurements.at<float>(0,i-2) = (float)msg->measurements[i].x;
-		measurements.at<float>(1,i-2) = (float)msg->measurements[i].y;
-	}
 		
-	// Approximate p(m=A) as N_A/N_T nearest neighbour prob			
-	int K = 50;
-	cv::Mat results = knnProb(m1,m2,measurements,K); // results is length(measurements) x K, 1 if p1, 0 if p2
-	//cout << results << std::endl;
-		
-	cv::Mat p1_m1((int)msg->measurements.size()-2,1,CV_64F);
-	cv::Mat p2_m1((int)msg->measurements.size()-2,1,CV_64F); 
-	cv::reduce(results,p1_m1,1,CV_REDUCE_AVG,-1); //p(m=pf1) is N_1/N_T nearest neighbour prob	
-	//cout << p1_m1;
-	p2_m1 = 1-p1_m1; //p(m=pf2) is 1 - p(m=pf1)
-	
-	
-	// Chance of incorrect assignment, transition
-	cv::Mat p2_m = 0.999*p2_m1 + 0.0005*p1_m1; 
-	cv::Mat p1_m = 0.999*p1_m1 + 0.0005*p2_m1; 
-	// Normalise measurement proposals
-    p1_m = p1_m/cv::sum(p1_m)[0]; 
-    p2_m = p2_m/cv::sum(p2_m)[0];
-
-	// Create weights vectors
-	std::vector<double> p1(p1_m);
-	std::vector<double> p2(p2_m);
-		
-	// Propose  measurements using weights
-	std::vector<int> bins1 = pf1->resample(p1,numParticles);
-	std::vector<int> bins2 = pf2->resample(p2,numParticles);
-	
 	cv::Mat measurement1(6,numParticles,CV_64F);
 	cv::Mat measurement2(6,numParticles,CV_64F);
 	
 	for (int i = 0; i < numParticles; i++)
 	{
-
-		measurement1.at<double>(0,i) = msg->measurements[0].x;
-		measurement1.at<double>(1,i) = msg->measurements[0].y;
-		measurement1.at<double>(2,i) = measurements.at<float>(0,bins1[i]);
-		measurement1.at<double>(3,i) = measurements.at<float>(1,bins1[i]);
-		measurement1.at<double>(4,i) = msg->measurements[1].x;
-		measurement1.at<double>(5,i) = msg->measurements[1].y;
-		
-		// Draw measurements
-		//pt.x = measurement1.at<double>(2,i) ;
-		//pt.y = measurement1.at<double>(3,i);
-		//circle(image, pt, 2, Scalar(0,0,255), -1, 8);
-			
-		measurement2.at<double>(0,i) = msg->measurements[0].x;
-		measurement2.at<double>(1,i) = msg->measurements[0].y;
-		measurement2.at<double>(2,i) = measurements.at<float>(0,bins2[i]);
-		measurement2.at<double>(3,i) = measurements.at<float>(1,bins2[i]);
-		measurement2.at<double>(4,i) = msg->measurements[1].x;
-		measurement2.at<double>(5,i) = msg->measurements[1].y;
-		
-		// Draw measurements
-		//pt.x = measurement2.at<double>(2,i) ;
-		//pt.y = measurement2.at<double>(3,i);
-		//circle(image, pt, 2, Scalar(255,0,0), -1, 8);
+		measurement1.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
+		measurement1.at<double>(1,i) = msg->ROIs[0].y_offset + msg->ROIs[0].height/2.0;
+		measurement1.at<double>(2,i) = 8*(binsL[i]%80);
+		measurement1.at<double>(3,i) = 8*(binsL[i]/80);
+		measurement1.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
+		measurement1.at<double>(5,i) = msg->ROIs[0].y_offset + 3.65/2.0*msg->ROIs[0].height;
+		circle(image, cv::Point(measurement1.at<double>(2,i),measurement1.at<double>(3,i)), 2, Scalar(255,0,0), -1, 8);
+				
+		measurement2.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
+		measurement2.at<double>(1,i) = msg->ROIs[0].y_offset + msg->ROIs[0].height/2.0;
+		measurement2.at<double>(2,i) = 8*(binsR[i]%80);
+		measurement2.at<double>(3,i) = 8*(binsR[i]/80);
+		measurement2.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
+		measurement2.at<double>(5,i) = msg->ROIs[0].y_offset + 3.65/2.0*msg->ROIs[0].height;
+		circle(image, cv::Point(measurement2.at<double>(2,i),measurement2.at<double>(3,i)), 2, Scalar(0,0,255), -1, 8);
 	}
 				
 	pf1->update(measurement1); // particle filter measurement left arm
 	pf2->update(measurement2); // particle filter measurement right arm
 }	
 
+cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood)
+{
+	cv::Mat prob_image_L = pf1->getProbMap(h2_pca.t(), m2_pca.t());
+	cv::Mat prob_image_R = pf2->getProbMap(h1_pca.t(), m1_pca.t());
+	cv::Mat output = cv::Mat::zeros(prob_image_L.rows,prob_image_L.cols,CV_8UC3);
+	
+	GaussianBlur(prob_image_L, prob_image_L, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
+	GaussianBlur(prob_image_R, prob_image_R, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
+	
+	cv::Mat mini_likelihood;
+	resize(likelihood,mini_likelihood,prob_image_L.size(),0,0,INTER_LINEAR);
+		
+	prob_image_L.convertTo(prob_image_L, CV_32FC1);
+    prob_image_R.convertTo(prob_image_R, CV_32FC1);
+    mini_likelihood.convertTo(mini_likelihood, CV_32FC1);
+    clutter.convertTo(clutter, CV_32FC1);
+    
+    clutter = 5*cv::Mat::ones(prob_image_L.rows,prob_image_L.cols,CV_32FC1);
+			
+	cv::Mat L = mini_likelihood.mul(prob_image_L);//*0.9 + prob_image_R*0.05 + 0.05*clutter);
+	cv::Mat R = mini_likelihood.mul(prob_image_R);//*0.9 + prob_image_L*0.05 + 0.05*clutter);
+	clutter = mini_likelihood.mul(clutter);//*0.8 + prob_image_R*0.1  + prob_image_L*0.1);
+	cv::normalize(0.2*L, L, 0, 255, NORM_MINMAX, CV_8UC1);
+	cv::normalize(0.2*R, R, 0, 255, NORM_MINMAX, CV_8UC1);
+	cv::normalize(0.6*clutter, clutter, 0, 255, NORM_MINMAX, CV_8UC1);
+			
+	std::vector<cv::Mat> Im_arr;
+	Im_arr.push_back(L);
+	Im_arr.push_back(clutter);
+	Im_arr.push_back(R);
+	cv::merge(Im_arr,output);
+	
+	return output;
+}
 	
 // perform particle filter update to estimate upper body joint positions
-void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const measurementproposals::HFPose2DArrayConstPtr& msg)
+void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const faceTracking::ROIArrayConstPtr& msg)
 {
-	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
+	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; 
+	cv::Mat likelihood = (cv_bridge::toCvCopy(like_msg, sensor_msgs::image_encodings::MONO8))->image; 
 	
-	if ((msg->id.compare("0")!=0)&&((int)msg->measurements.size()>2))
+	if (msg->ROIs.size() > 0)
 	{
-		update(msg,image);
+		cv_bridge::CvImage prob;
+		prob.encoding = "rgb8";
+		prob.image = getMeasurementProposal(likelihood);			
+		prob_pub.publish(prob.toImageMsg()); // publish result image
 		
+		std::vector<cv::Mat> Im_arr;
+		split(prob.image,Im_arr);
+		
+		Mat vecL = Im_arr[0].reshape(0,1);
+		vecL.convertTo(vecL, CV_32FC1);
+		
+		Mat vecC = Im_arr[1].reshape(0,1);
+		vecC.convertTo(vecC, CV_32FC1);
+		
+		Mat vecR = Im_arr[2].reshape(0,1);
+		vecR.convertTo(vecR, CV_32FC1);
+		
+		double sum_P = sum(vecR)[0] + sum(vecL)[0] + sum(vecC)[0];
+		vecR = vecR/sum_P;
+		vecL = vecL/sum_P;
+				
+		std::vector<double> weightsL(vecL);
+		std::vector<double> weightsR(vecR);
+		std::vector<int> binsL = pf1->resample(weightsL, numParticles);
+		std::vector<int> binsR = pf2->resample(weightsR, numParticles);
+		
+		update(binsL,binsR,msg,image);
+	
 		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
 		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
-			
-		//getProbImage(e1,e2);
+	
 		publishTFtree(e1,e2);
 		publish2Dpos(e1,e2,msg);
-			
-		// Draw stick man on result image
-		// Result vector arrangment	
-		// h       e     s       h       n
-		// 0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
+		
+		//Draw stick man on result image
+		//Result vector arrangment	
+		//h       e     s       h       n
+		//0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
 		int i;
 		int col[3] = {0, 125, 255};
 		for (i = 0; i < 2; i++)
@@ -351,21 +336,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const measurem
 		}
 		line(image, Point(e1.at<double>(0,3*i),e1.at<double>(0,3*i+1)), Point(e2.at<double>(0,3*i),e2.at<double>(0,3*i+1)), Scalar(0, 255, 0), 5, 8,0);
 		line(image, Point(e1.at<double>(0,3*(i+1)),e1.at<double>(0,3*(i+1)+1)), Point(e1.at<double>(0,3*(i+2)),e1.at<double>(0,3*(i+2)+1)), Scalar(255, 0, 0), 5, 8,0);
-	}
-	else
-	{
-		measurementproposals::HFPose2D rosHands;
-		measurementproposals::HFPose2DArray rosHandsArr;
-		rosHands.x = 0;
-		rosHands.y = 0;
-		for (int i = 0; i < 8; i++)
-		{
-			rosHandsArr.measurements.push_back(rosHands);
-		}
-		rosHandsArr.header = msg->header;
-		rosHandsArr.id = "0";
-		hand_pub.publish(rosHandsArr);
-	}
+	}		
+		
 	cv_bridge::CvImage img2;
 	img2.header = immsg->header;
 	img2.encoding = "rgb8";

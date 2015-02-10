@@ -15,13 +15,15 @@ ParticleFilter::ParticleFilter(int states, int nParticles)
 	gmm.nParticles = nParticles;
 	gmm.resetTracker(states);
 	
-	idx_v = cv::Mat::zeros(60*80,2,CV_64F);
-	for (int j = 0; j < 60; j++)
+	int x = 60, y = 80;
+	
+	idx_v = cv::Mat::zeros(x*y,2,CV_64F);
+	for (int j = 0; j < x; j++)
 	{
-		for (int i = 0; i < 80; i++)
+		for (int i = 0; i < y; i++)
 		{
-			idx_v.at<double>(80*j + i,0) = (double)i;
-			idx_v.at<double>(80*j + i,1) = (double)j;
+			idx_v.at<double>(y*j + i,0) = (double)i;
+			idx_v.at<double>(y*j + i,1) = (double)j;
 		}
 	}
 }
@@ -77,7 +79,6 @@ double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 	return (exp(-0.5*quadform - logSqrtDetSigma - x.rows*log(2.0*M_PI)/2.0));
 }
 
-
 cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
 	cv::Mat sigma_i = chol(sigma);
@@ -97,45 +98,40 @@ cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 
 cv::Mat ParticleFilter::getProbMap(cv::Mat H, cv::Mat M)
 {
-	cv::Mat output = cv::Mat::zeros(60,80,CV_8UC3);
+	int x = 60, y = 80;
+	cv::Mat output = cv::Mat::zeros(x,y,CV_8UC1);
 	cv::Mat Im;
-	std::vector<cv::Mat> Im_arr;
-	std::vector<cv::Mat> Im_arr_2;
-	for (int i = 0; i < 5; i++)
+	Im = cv::Mat::zeros(x*y,1,CV_64F);
+	for (int k = 0; k < gmm.nParticles; k++)
 	{
-		Im = cv::Mat::zeros(60*80,1,CV_64F);
-		Im_arr.push_back(cv::Mat::zeros(60,80,CV_8UC1));
-		for (int k = 0; k < gmm.nParticles; k++)
-		{
-			cv::Mat state = (H*gmm.tracks[k].state + M)/8.0;
-			cv::Mat cov = H*gmm.tracks[k].cov/8.0*H.t();
-			Im = Im + gmm.tracks[k].weight*logmvnpdf(idx_v.t(), state.rowRange(Range(3*i,3*i+2)),cov(Range(3*i,3*i+2),Range(3*i,3*i+2)));
-		}
-		cv::normalize(Im.reshape(1,60), Im_arr[i], 0, 255, NORM_MINMAX, CV_8UC1);
+		cv::Mat state = (H*gmm.tracks[k].state + M)/8.0;
+		cv::Mat cov = H*gmm.tracks[k].cov/8.0*H.t();
+		Im = Im + gmm.tracks[k].weight*logmvnpdf(idx_v.t(), state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
 	}
-	Im_arr_2.push_back(Im_arr[0]);
-	Im_arr_2.push_back(Im_arr[1]);
-	Im_arr_2.push_back(Im_arr[2]+Im_arr[3]+Im_arr[4]);
-	cv::merge(Im_arr_2,output);
+	cv::normalize(Im.reshape(1,x), output, 0, 255, NORM_MINMAX, CV_8UC1);
 	return output;
 }
 
-cv::Mat ParticleFilter::getPreviousHandMeasurements()
+cv::Mat ParticleFilter::getSamples(int N)
 {
-	cv::Mat measurements(2,(int)gmm.tracks.size(),CV_64F);
-	for (int i = 0; i < (int)gmm.tracks.size(); i++)
+	RNG rng;
+	cv::Mat output = cv::Mat::zeros(2,N,CV_8UC1);
+	cv::Mat temp = cv::Mat::zeros(2,1,CV_8UC1);
+	for (int k = 0; k < gmm.nParticles; k++)
 	{
-		measurements.at<double>(0,i) = gmm.tracks[i].measurement.at<double>(0,0);
-		measurements.at<double>(1,i) = gmm.tracks[i].measurement.at<double>(1,0);
+		j = rng(0,N);
+		cv::Mat state = (H*gmm.tracks[j].state + M)/8.0;
+		cv::Mat cov = H*gmm.tracks[j].cov/8.0*H.t();
+		randn(temp,state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
+		temp.copyTo(output.row(k));
 	}
-	return measurements;
+	return output;
 }
 
 // Update stage
 void ParticleFilter::update(cv::Mat measurement)
 {
 	// Propose indicators
-	
 	std::vector<int> indicators = resample(gmm.weight, gmm.nParticles);
 	std::vector<double> weights;
 	wsum = 0;
@@ -150,7 +146,6 @@ void ParticleFilter::update(cv::Mat measurement)
 		wsum = wsum + weights[j];
 		//cout << weights[j] << " ";
 		gmm.KFtracker[i].update(measurement.col(j),gmm.tracks[j].state,gmm.tracks[j].cov);
-		measurement(Range(2,4),Range(j,j+1)).copyTo(gmm.tracks[j].measurement);
 		temp.push_back(gmm.tracks[j]);
 	}
 		

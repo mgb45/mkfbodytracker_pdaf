@@ -24,6 +24,7 @@
 #include "opencv2/ml/ml.hpp"
 #include "measurementproposals/HFPose2D.h"
 #include "measurementproposals/HFPose2DArray.h"
+#include "faceTracking/ROIArray.h"
 #include <tf/transform_broadcaster.h>
 
 class PFTracker
@@ -35,7 +36,6 @@ class PFTracker
 	private:
 		ros::NodeHandle nh;
 		image_transport::Publisher pub;
-		image_transport::Publisher edge_pub;
 		image_transport::Publisher prob_pub;
 		ros::Publisher hand_pub;
 		
@@ -44,11 +44,12 @@ class PFTracker
 		
 		cv::Mat m1_pca, m2_pca, h1_pca, h2_pca;
 				
-		void callback(const sensor_msgs::ImageConstPtr& immsg, const measurementproposals::HFPose2DArrayConstPtr& msg);
+		void callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const faceTracking::ROIArrayConstPtr& msg);
 		
-		message_filters::TimeSynchronizer<sensor_msgs::Image, measurementproposals::HFPose2DArray>* sync;
+		message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, faceTracking::ROIArray>* sync;
 		message_filters::Subscriber<sensor_msgs::Image> image_sub;
-		message_filters::Subscriber<measurementproposals::HFPose2DArray> pose_sub;	
+		message_filters::Subscriber<sensor_msgs::Image> likelihood_sub;
+		message_filters::Subscriber<faceTracking::ROIArray> pose_sub;
 		
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
@@ -56,10 +57,12 @@ class PFTracker
 		
 		void getProbImage(cv::Mat e1, cv::Mat e2);
 		void publishTFtree(cv::Mat e1, cv::Mat e2);
-		void publish2Dpos(cv::Mat e1, cv::Mat e2, const measurementproposals::HFPose2DArrayConstPtr& msg);
-		void update(const measurementproposals::HFPose2DArrayConstPtr& msg, cv::Mat image);
-		cv::Mat knnProb(cv::Mat m1, cv::Mat m2, cv::Mat measurements,int K);
+		void publish2Dpos(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg);
+		void update(const std::vector<int> binsL, const std::vector<int> binsR, const faceTracking::ROIArrayConstPtr& msg, cv::Mat image);
+				
+		cv::Mat getMeasurementProposal(cv::Mat likelihood);
 		
+		cv::Mat clutter;
 		
 		int d, numParticles;
 };
