@@ -23,8 +23,9 @@ class my_gmm
 		my_gmm();
 		~my_gmm();
 		void loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w, double g);
-		void resetTracker(int d);
+		void resetTracker(std::vector<int> bins);
 		std::vector<cv::Mat> mean;
+		std::vector<cv::Mat> cov;
 		std::vector<double> weight;
 		std::vector<KF_model> KFtracker;
 		std::vector<state_params> tracks;

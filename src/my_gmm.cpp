@@ -27,17 +27,15 @@ my_gmm::~my_gmm()
 }
 
 //Re-initialise tracker with large uncertainty and random state
-void my_gmm::resetTracker(int d)
+void my_gmm::resetTracker(std::vector<int> bins)
 {
 	tracks.clear();
 	for (int i = 0; i < nParticles; i++)
 	{
 		state_params temp;
-		temp.state = cv::Mat::zeros(d,1,CV_64F);
-		randu(temp.state,1,640);
-		temp.cov = cv::Mat::zeros(d,d,CV_64F);
-		temp.weight = 1.0/(double)nParticles;
-		setIdentity(temp.cov, cv::Scalar::all(10000));
+		temp.state = mean[bins[i]].t();
+		temp.cov = cv::Mat::zeros(mean[bins[i]].cols,mean[bins[i]].cols,CV_64F);
+		setIdentity(temp.cov, cv::Scalar::all(150));
 		tracks.push_back(temp);
 	}
 }
@@ -46,6 +44,7 @@ void my_gmm::resetTracker(int d)
 void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w, double g)
 {
 	mean.push_back(u);
+	cov.push_back(s);
 	weight.push_back(w);
 	
 	KF_model tracker;

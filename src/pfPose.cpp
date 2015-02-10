@@ -53,10 +53,10 @@ PFTracker::PFTracker()
     fs1.release();
     fs2.release();
     
-    numParticles = 100;
+    numParticles = 500;
     d = h1_pca.rows;
-	pf1 = new ParticleFilter(d,numParticles); // left arm pf
-	pf2 = new ParticleFilter(d,numParticles); // right arm pf
+	pf1 = new ParticleFilter(numParticles); // left arm pf
+	pf2 = new ParticleFilter(numParticles); // right arm pf
 
 	for (int i = 0; i < means1.rows; i++)
 	{
@@ -64,6 +64,11 @@ PFTracker::PFTracker()
 		pf1->gmm.loadGaussian(means2.row(i),covs2(Range(covs2.cols*i,covs2.cols*(i+1)),Range(0,covs2.cols)), h2_pca, m2_pca, weights2.at<double>(0,i), g2.at<double>(0,i));
 	}
 	
+	// Initialise particle filter
+	std::vector<int> bins1 = pf1->resample(pf1->gmm.weight,numParticles);
+	std::vector<int> bins2 = pf2->resample(pf2->gmm.weight,numParticles);
+	pf1->gmm.resetTracker(bins1);
+	pf2->gmm.resetTracker(bins2);
 }
 
 PFTracker::~PFTracker()
@@ -117,24 +122,6 @@ cv::Mat PFTracker::get3Dpose(cv::Mat estimate)
 	
 	cv::Mat pos3D = P_I*(im_points-repeat(P.col(3).t(),5,1)).t();
 	return pos3D;
-}
-
-void PFTracker::getProbImage(cv::Mat e1, cv::Mat e2)
-{
-	cv_bridge::CvImage prob;
-	prob.encoding = "rgb8";
-	prob.image = pf1->getProbMap(h2_pca.t(), m2_pca.t());//edge_image;			
-	int i;
-	int col[3] = {0, 125, 255};
-	for (i = 0; i < 2; i++)
-	{
-		line(prob.image, Point(e1.at<double>(0,3*i)/8.0,e1.at<double>(0,3*i+1)/8.0), Point(e1.at<double>(0,3*(i+1))/8.0,e1.at<double>(0,3*(i+1)+1)/8.0), Scalar(col[i], 255, col[2-i]), 1, 8,0);
-		line(prob.image, Point(e2.at<double>(0,3*i)/8.0,e2.at<double>(0,3*i+1)/8.0), Point(e2.at<double>(0,3*(i+1))/8.0,e2.at<double>(0,3*(i+1)+1)/8.0), Scalar(col[i], 255, col[2-i]), 1, 8,0);
-	}
-	line(prob.image, Point(e1.at<double>(0,3*i)/8.0,e1.at<double>(0,3*i+1)/8.0), Point(e2.at<double>(0,3*i)/8.0,e2.at<double>(0,3*i+1)/8.0), Scalar(0, 255, 0), 1, 8,0);
-	line(prob.image, Point(e1.at<double>(0,3*(i+1))/8.0,e1.at<double>(0,3*(i+1)+1)/8.0), Point(e1.at<double>(0,3*(i+2))/8.0,e1.at<double>(0,3*(i+2)+1)/8.0), Scalar(255, 0, 0), 1, 8,0);	
-	prob_pub.publish(prob.toImageMsg()); // publish result image
-
 }
 
 void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
@@ -216,10 +203,52 @@ void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArray
 	hand_pub.publish(rosHandsArr);
 }
 
-void PFTracker::update(const std::vector<int> binsL, const std::vector<int> binsR, const faceTracking::ROIArrayConstPtr& msg, cv::Mat image)
+cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking::ROIArrayConstPtr& msg)
 {
-	// Package new measurements into matrix
+	cv::Mat output = cv::Mat::zeros(likelihood.rows,likelihood.cols,CV_8UC3);
+	GaussianBlur(likelihood, likelihood, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
+	cvtColor(likelihood, output, CV_GRAY2RGB);
+	
+	cv::Mat props_L = pf1->getSamples(h2_pca.t(), m2_pca.t(),numParticles);
+	cv::Mat props_R = pf2->getSamples(h1_pca.t(), m1_pca.t(),numParticles);
 		
+	std::vector<double> weightsL;
+	std::vector<double> weightsR;
+	double sumR=0,sumL=0;
+	for (int j = 0; j < numParticles; j++)
+	{
+		if ((props_L.at<double>(1,j) > 0)&&(props_L.at<double>(1,j) < likelihood.rows)&&(props_L.at<double>(0,j) > 0)&&(props_L.at<double>(0,j) < likelihood.cols))
+		{
+			circle(output, cv::Point(props_L.at<double>(0,j),props_L.at<double>(1,j)), 2, Scalar(0,255,0), -1, 8);
+			weightsL.push_back((double)likelihood.at<uchar>(props_L.at<double>(1,j),props_L.at<double>(0,j)));
+			sumL = sumL+weightsL[j];
+		}
+		else
+		{
+			weightsL.push_back(0);
+		}
+		
+		if ((props_R.at<double>(1,j) > 0)&&(props_R.at<double>(1,j) < likelihood.rows)&&(props_R.at<double>(0,j) > 0)&&(props_R.at<double>(0,j) < likelihood.cols))
+		{
+			circle(output, cv::Point(props_R.at<double>(0,j),props_R.at<double>(1,j)), 2, Scalar(0,255,0), -1, 8);
+			weightsR.push_back((double)likelihood.at<uchar>(props_R.at<double>(1,j),props_R.at<double>(0,j)));
+			sumR = sumR+weightsR[j];
+		}
+		else
+		{
+			weightsR.push_back(0);
+		}
+	}
+	
+	for (int j = 0; j < numParticles; j++)
+	{
+		weightsL[j] = weightsL[j]/sumL;
+		weightsR[j] = weightsR[j]/sumR;
+	}
+	
+	std::vector<int> binsL = pf1->resample(weightsL, numParticles);
+	std::vector<int> binsR = pf2->resample(weightsR, numParticles);
+	
 	cv::Mat measurement1(6,numParticles,CV_64F);
 	cv::Mat measurement2(6,numParticles,CV_64F);
 	
@@ -227,57 +256,24 @@ void PFTracker::update(const std::vector<int> binsL, const std::vector<int> bins
 	{
 		measurement1.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
 		measurement1.at<double>(1,i) = msg->ROIs[0].y_offset + msg->ROIs[0].height/2.0;
-		measurement1.at<double>(2,i) = 8*(binsL[i]%80);
-		measurement1.at<double>(3,i) = 8*(binsL[i]/80);
+		measurement1.at<double>(2,i) = props_L.at<double>(0,binsL[i]);
+		measurement1.at<double>(3,i) = props_L.at<double>(1,binsL[i]);
 		measurement1.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
 		measurement1.at<double>(5,i) = msg->ROIs[0].y_offset + 3.65/2.0*msg->ROIs[0].height;
-		circle(image, cv::Point(measurement1.at<double>(2,i),measurement1.at<double>(3,i)), 2, Scalar(255,0,0), -1, 8);
+		circle(output, cv::Point(measurement1.at<double>(2,i),measurement1.at<double>(3,i)), 2, Scalar(255,0,0), -1, 8);
 				
 		measurement2.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
 		measurement2.at<double>(1,i) = msg->ROIs[0].y_offset + msg->ROIs[0].height/2.0;
-		measurement2.at<double>(2,i) = 8*(binsR[i]%80);
-		measurement2.at<double>(3,i) = 8*(binsR[i]/80);
+		measurement2.at<double>(2,i) = props_R.at<double>(0,binsR[i]);
+		measurement2.at<double>(3,i) = props_R.at<double>(1,binsR[i]);
 		measurement2.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
 		measurement2.at<double>(5,i) = msg->ROIs[0].y_offset + 3.65/2.0*msg->ROIs[0].height;
-		circle(image, cv::Point(measurement2.at<double>(2,i),measurement2.at<double>(3,i)), 2, Scalar(0,0,255), -1, 8);
+		circle(output, cv::Point(measurement2.at<double>(2,i),measurement2.at<double>(3,i)), 2, Scalar(0,0,255), -1, 8);
 	}
 				
 	pf1->update(measurement1); // particle filter measurement left arm
 	pf2->update(measurement2); // particle filter measurement right arm
-}	
-
-cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood)
-{
-	cv::Mat prob_image_L = pf1->getProbMap(h2_pca.t(), m2_pca.t());
-	cv::Mat prob_image_R = pf2->getProbMap(h1_pca.t(), m1_pca.t());
-	cv::Mat output = cv::Mat::zeros(prob_image_L.rows,prob_image_L.cols,CV_8UC3);
-	
-	GaussianBlur(prob_image_L, prob_image_L, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
-	GaussianBlur(prob_image_R, prob_image_R, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
-	
-	cv::Mat mini_likelihood;
-	resize(likelihood,mini_likelihood,prob_image_L.size(),0,0,INTER_LINEAR);
 		
-	prob_image_L.convertTo(prob_image_L, CV_32FC1);
-    prob_image_R.convertTo(prob_image_R, CV_32FC1);
-    mini_likelihood.convertTo(mini_likelihood, CV_32FC1);
-    clutter.convertTo(clutter, CV_32FC1);
-    
-    clutter = 5*cv::Mat::ones(prob_image_L.rows,prob_image_L.cols,CV_32FC1);
-			
-	cv::Mat L = mini_likelihood.mul(prob_image_L);//*0.9 + prob_image_R*0.05 + 0.05*clutter);
-	cv::Mat R = mini_likelihood.mul(prob_image_R);//*0.9 + prob_image_L*0.05 + 0.05*clutter);
-	clutter = mini_likelihood.mul(clutter);//*0.8 + prob_image_R*0.1  + prob_image_L*0.1);
-	cv::normalize(0.2*L, L, 0, 255, NORM_MINMAX, CV_8UC1);
-	cv::normalize(0.2*R, R, 0, 255, NORM_MINMAX, CV_8UC1);
-	cv::normalize(0.6*clutter, clutter, 0, 255, NORM_MINMAX, CV_8UC1);
-			
-	std::vector<cv::Mat> Im_arr;
-	Im_arr.push_back(L);
-	Im_arr.push_back(clutter);
-	Im_arr.push_back(R);
-	cv::merge(Im_arr,output);
-	
 	return output;
 }
 	
@@ -291,32 +287,9 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_m
 	{
 		cv_bridge::CvImage prob;
 		prob.encoding = "rgb8";
-		prob.image = getMeasurementProposal(likelihood);			
+		prob.image = getMeasurementProposal(likelihood,msg);			
 		prob_pub.publish(prob.toImageMsg()); // publish result image
 		
-		std::vector<cv::Mat> Im_arr;
-		split(prob.image,Im_arr);
-		
-		Mat vecL = Im_arr[0].reshape(0,1);
-		vecL.convertTo(vecL, CV_32FC1);
-		
-		Mat vecC = Im_arr[1].reshape(0,1);
-		vecC.convertTo(vecC, CV_32FC1);
-		
-		Mat vecR = Im_arr[2].reshape(0,1);
-		vecR.convertTo(vecR, CV_32FC1);
-		
-		double sum_P = sum(vecR)[0] + sum(vecL)[0] + sum(vecC)[0];
-		vecR = vecR/sum_P;
-		vecL = vecL/sum_P;
-				
-		std::vector<double> weightsL(vecL);
-		std::vector<double> weightsR(vecR);
-		std::vector<int> binsL = pf1->resample(weightsL, numParticles);
-		std::vector<int> binsR = pf2->resample(weightsR, numParticles);
-		
-		update(binsL,binsR,msg,image);
-	
 		cv::Mat e1 = h2_pca.t()*pf1->getEstimator() + m2_pca.t(); // Weighted average pose estimate
 		cv::Mat e2 = h1_pca.t()*pf2->getEstimator() + m1_pca.t();
 	

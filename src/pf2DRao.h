@@ -13,12 +13,11 @@
 class ParticleFilter
 {
 	public:
-		ParticleFilter(int states, int nParticles);
+		ParticleFilter(int nParticles);
 		~ParticleFilter();		
 		void update(cv::Mat measurement);
 		cv::Mat getEstimator();
-		cv::Mat getProbMap(cv::Mat H, cv::Mat M);
-		cv::Mat getSamples(int N);
+		cv::Mat getSamples(cv::Mat H, cv::Mat M, int N);
 		my_gmm gmm;
 		std::vector<int> resample(std::vector<double> weights, int N);
 	protected:

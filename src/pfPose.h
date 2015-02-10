@@ -53,14 +53,11 @@ class PFTracker
 		
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
-		cv::Mat associateHands(const measurementproposals::HFPose2DArrayConstPtr& msg);
-		
-		void getProbImage(cv::Mat e1, cv::Mat e2);
+				
 		void publishTFtree(cv::Mat e1, cv::Mat e2);
 		void publish2Dpos(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg);
-		void update(const std::vector<int> binsL, const std::vector<int> binsR, const faceTracking::ROIArrayConstPtr& msg, cv::Mat image);
-				
-		cv::Mat getMeasurementProposal(cv::Mat likelihood);
+						
+		cv::Mat getMeasurementProposal(cv::Mat likelihood, const faceTracking::ROIArrayConstPtr& msg);
 		
 		cv::Mat clutter;
 		

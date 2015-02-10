@@ -10,22 +10,9 @@
 using namespace cv;
 using namespace std;
 
-ParticleFilter::ParticleFilter(int states, int nParticles)
+ParticleFilter::ParticleFilter(int nParticles)
 {
 	gmm.nParticles = nParticles;
-	gmm.resetTracker(states);
-	
-	int x = 60, y = 80;
-	
-	idx_v = cv::Mat::zeros(x*y,2,CV_64F);
-	for (int j = 0; j < x; j++)
-	{
-		for (int i = 0; i < y; i++)
-		{
-			idx_v.at<double>(y*j + i,0) = (double)i;
-			idx_v.at<double>(y*j + i,1) = (double)j;
-		}
-	}
 }
 
 ParticleFilter::~ParticleFilter()
@@ -96,35 +83,30 @@ cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 }
 
 
-cv::Mat ParticleFilter::getProbMap(cv::Mat H, cv::Mat M)
-{
-	int x = 60, y = 80;
-	cv::Mat output = cv::Mat::zeros(x,y,CV_8UC1);
-	cv::Mat Im;
-	Im = cv::Mat::zeros(x*y,1,CV_64F);
-	for (int k = 0; k < gmm.nParticles; k++)
-	{
-		cv::Mat state = (H*gmm.tracks[k].state + M)/8.0;
-		cv::Mat cov = H*gmm.tracks[k].cov/8.0*H.t();
-		Im = Im + gmm.tracks[k].weight*logmvnpdf(idx_v.t(), state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
-	}
-	cv::normalize(Im.reshape(1,x), output, 0, 255, NORM_MINMAX, CV_8UC1);
-	return output;
-}
-
-cv::Mat ParticleFilter::getSamples(int N)
+cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N)
 {
 	RNG rng;
-	cv::Mat output = cv::Mat::zeros(2,N,CV_8UC1);
-	cv::Mat temp = cv::Mat::zeros(2,1,CV_8UC1);
+	cv::Mat output = cv::Mat::zeros(2,N,CV_64F);
+	cv::Mat temp = cv::Mat::zeros(1,1,CV_64FC2);
+	cv::Mat noise = cv::Mat::zeros(1,1,CV_64FC2);
+	cv::Mat m =  cv::Mat::zeros(2,1,CV_64F);
+	cv::Mat C = cv::Mat::zeros(2,2,CV_64F);
+	setIdentity(C, cv::Scalar::all(25));
+	Mat_<Vec2d> &U = reinterpret_cast<Mat_<Vec2d>&>(temp);
 	for (int k = 0; k < gmm.nParticles; k++)
 	{
-		j = rng(0,N);
-		cv::Mat state = (H*gmm.tracks[j].state + M)/8.0;
-		cv::Mat cov = H*gmm.tracks[j].cov/8.0*H.t();
+		int j = rng.uniform(0,N);
+		cv::Mat state = (H*gmm.tracks[j].state + M);
+		cv::Mat cov = H*gmm.tracks[j].cov*H.t();
+		
 		randn(temp,state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
-		temp.copyTo(output.row(k));
+		randn(noise,m,C);
+		temp = temp+noise;
+		
+		output.at<double>(0,k) = U(0,0)[0];
+		output.at<double>(1,k) = U(0,0)[1];
 	}
+	
 	return output;
 }
 
@@ -154,8 +136,6 @@ void ParticleFilter::update(cv::Mat measurement)
 		weights[i] = weights[i]/wsum;
 	}
 	
-	
-		
 	// Re-sample tracks
 	indicators.clear();
 	indicators = resample(weights, gmm.nParticles);
