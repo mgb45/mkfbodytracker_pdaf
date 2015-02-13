@@ -62,6 +62,7 @@ class PFTracker
 		cv::Mat clutter;
 		
 		int d, numParticles;
+		bool init;
 };
 
 #endif

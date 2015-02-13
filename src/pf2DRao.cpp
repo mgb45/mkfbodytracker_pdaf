@@ -91,11 +91,11 @@ cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N)
 	cv::Mat noise = cv::Mat::zeros(1,1,CV_64FC2);
 	cv::Mat m =  cv::Mat::zeros(2,1,CV_64F);
 	cv::Mat C = cv::Mat::zeros(2,2,CV_64F);
-	setIdentity(C, cv::Scalar::all(25));
+	setIdentity(C, cv::Scalar::all(20));
 	Mat_<Vec2d> &U = reinterpret_cast<Mat_<Vec2d>&>(temp);
-	for (int k = 0; k < gmm.nParticles; k++)
+	for (int k = 0; k < N; k++)
 	{
-		int j = rng.uniform(0,N);
+		int j = rng.uniform(0,gmm.nParticles);
 		cv::Mat state = (H*gmm.tracks[j].state + M);
 		cv::Mat cov = H*gmm.tracks[j].cov*H.t();
 		
