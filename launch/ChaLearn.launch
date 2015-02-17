@@ -1,7 +1,7 @@
 <launch>
   <!-- Play video file using gscam -->
  
-  <arg name="FILENAME" default="/opt/ChaLearn/validation2/Sample00607/Sample00607_color"/>
+  <arg name="FILENAME" default="/opt/ChaLearn/validation1/Sample00420/Sample00420_color"/>
   <arg name="LOOP" default="false"/>
   <arg name="SAVE" default="false"/>
 
@@ -47,14 +47,14 @@
 
 <!--  <node pkg="image_view" type="image_view" name ="im0">
 	<remap from="image" to ="camera/image_raw"/>
-  </node>-->
-
-  <node pkg="image_view" type="image_view" name ="im2">
-	<remap from="image" to ="probImage"/>
   </node>
 
   <node pkg="image_view" type="image_view" name ="im3">
         <remap from="image" to ="likelihood"/>
+  </node> -->
+
+  <node pkg="image_view" type="image_view" name ="im2">
+	<remap from="image" to ="probImage"/>
   </node>
 
   <node pkg="image_view" type="image_view" name ="im4">

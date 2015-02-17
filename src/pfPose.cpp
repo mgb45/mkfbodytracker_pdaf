@@ -216,32 +216,53 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 	cv::Mat output = cv::Mat::zeros(likelihood.rows,likelihood.cols,CV_8UC3);
 	GaussianBlur(likelihood, likelihood, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
 	cvtColor(likelihood, output, CV_GRAY2RGB);
-	cv::Mat props_1 = cv::Mat::zeros(2,numParticles,CV_64F);
-	cv::Mat props_2 = cv::Mat::zeros(2,numParticles,CV_64F);
+	
+	int N = numParticles;
+	// Get measurement proposals, xj ~ p(x|A)
+	cv::Mat props_1 = cv::Mat::zeros(2,N,CV_64F);
+	cv::Mat props_2 = cv::Mat::zeros(2,N,CV_64F);
 	if (init)
 	{
-		props_1 = pf1->getSamples(h1_pca.t(), m1_pca.t(),numParticles);
-		props_2 = pf2->getSamples(h2_pca.t(), m2_pca.t(),numParticles);
+		props_1 = pf1->getSamples(h1_pca.t(), m1_pca.t(),N);
+		props_2 = pf2->getSamples(h2_pca.t(), m2_pca.t(),N);
 	}
 	else
 	{
 		init = true;
-		cv::randu(props_1.row(0),msg->ROIs[0].x_offset - 0.25*msg->ROIs[0].width,msg->ROIs[0].x_offset + 1.25*msg->ROIs[0].width);
-		cv::randu(props_2.row(0),msg->ROIs[0].x_offset - 0.25*msg->ROIs[0].width,msg->ROIs[0].x_offset + 1.25*msg->ROIs[0].width);
-		cv::randu(props_1.row(1),msg->ROIs[0].y_offset + 0.25*msg->ROIs[0].height,msg->ROIs[0].y_offset + 2.5*msg->ROIs[0].height);
-		cv::randu(props_2.row(1),msg->ROIs[0].y_offset + 0.25*msg->ROIs[0].height,msg->ROIs[0].y_offset + 2.5*msg->ROIs[0].height);
+		cv::randu(props_1.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
+		cv::randu(props_2.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
+		cv::randu(props_1.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
+		cv::randu(props_2.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
 	}
-		
+	
+	// Evaluate p(xj|A)
+	std::vector<double> p1_x_1,p1_x_2,p2_x_1,p2_x_2; 
+	
+	pf1->getSampleProb(h1_pca.t(), m1_pca.t(), props_1, props_2, p1_x_1, p2_x_1,N);
+	pf2->getSampleProb(h2_pca.t(), m2_pca.t(), props_1, props_2, p1_x_2, p2_x_2,N);
+	
 	std::vector<double> weights1;
 	std::vector<double> weights2;
-	double sum2=0,sum1=0;
-	for (int j = 0; j < numParticles; j++)
+	
+	double Pa = 0.5;
+	double sum1=0, sum2=0;
+	for (int j = 0; j < N; j++)
 	{
 		if ((props_1.at<double>(1,j) > 0)&&(props_1.at<double>(1,j) < likelihood.rows)&&(props_1.at<double>(0,j) > 0)&&(props_1.at<double>(0,j) < likelihood.cols))
 		{
 			circle(output, cv::Point(props_1.at<double>(0,j),props_1.at<double>(1,j)), 2, Scalar(0,255,0), -1, 8);
-			weights1.push_back((double)likelihood.at<uchar>(props_1.at<double>(1,j),props_1.at<double>(0,j)));
-			sum1 = sum1+weights1[j];
+			double L = (double)likelihood.at<uchar>(props_1.at<double>(1,j),props_1.at<double>(0,j));
+			if (L == 0)
+			{
+				weights1.push_back(0);
+			}
+			else
+			{
+				double Z = L*p1_x_1[j]*Pa + L*p1_x_2[j]*Pa;// + L*0.05*Pa;
+				ROS_INFO("P1: %f %f %f",L,Z,L*Pa/Z);
+				weights1.push_back(L*Pa/Z);
+				sum1 = sum1+weights1[j];
+			}
 		}
 		else
 		{
@@ -251,8 +272,18 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		if ((props_2.at<double>(1,j) > 0)&&(props_2.at<double>(1,j) < likelihood.rows)&&(props_2.at<double>(0,j) > 0)&&(props_2.at<double>(0,j) < likelihood.cols))
 		{
 			circle(output, cv::Point(props_2.at<double>(0,j),props_2.at<double>(1,j)), 2, Scalar(0,255,0), -1, 8);
-			weights2.push_back((double)likelihood.at<uchar>(props_2.at<double>(1,j),props_2.at<double>(0,j)));
-			sum2 = sum2+weights2[j];
+			double L = (double)likelihood.at<uchar>(props_2.at<double>(1,j),props_2.at<double>(0,j));
+			if (L == 0)
+			{
+				weights2.push_back(0);
+			}
+			else
+			{
+				double Z = L*p2_x_2[j]*Pa + L*p2_x_1[j]*Pa;// + L*0.05*Pa;
+				ROS_INFO("P2: %f %f %f",L,Z,L*Pa/Z);
+				weights2.push_back(L*Pa/Z);
+				sum2 = sum2+weights2[j];
+			}
 		}
 		else
 		{
@@ -260,38 +291,50 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		}
 	}
 	
-	for (int j = 0; j < numParticles; j++)
+	if (sum1 == 0)
 	{
-		weights1[j] = weights1[j]/sum1;
-		weights2[j] = weights2[j]/sum2;
+		cv::randu(props_1.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
+		cv::randu(props_1.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
+	}
+	
+	if (sum2 == 0)
+	{
+		cv::randu(props_2.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
+		cv::randu(props_2.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
+	}
+	
+	for (int j = 0; j < N; j++)
+	{
+		weights1[j] = weights1[j]/(sum1);
+		weights2[j] = weights2[j]/(sum2);
 	}
 	
 	std::vector<int> bins1 = pf1->resample(weights1, numParticles);
 	std::vector<int> bins2 = pf2->resample(weights2, numParticles);
 	
-	cv::Mat measurement1(8,numParticles,CV_64F);
-	cv::Mat measurement2(8,numParticles,CV_64F);
+	cv::Mat measurement1(6,numParticles,CV_64F);
+	cv::Mat measurement2(6,numParticles,CV_64F);
 	
 	for (int i = 0; i < numParticles; i++)
 	{
 		measurement1.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
-		measurement1.at<double>(1,i) = msg->ROIs[0].y_offset + 0.3*msg->ROIs[0].height;
+		measurement1.at<double>(1,i) = msg->ROIs[0].y_offset + 0.5*msg->ROIs[0].height;
 		measurement1.at<double>(2,i) = props_1.at<double>(0,bins1[i]);
 		measurement1.at<double>(3,i) = props_1.at<double>(1,bins1[i]);
 		measurement1.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
-		measurement1.at<double>(5,i) = msg->ROIs[0].y_offset + 0.7*msg->ROIs[0].height;
-		measurement1.at<double>(6,i) = msg->ROIs[0].x_offset + 0.75*msg->ROIs[0].width;
-		measurement1.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;		
+		measurement1.at<double>(5,i) = msg->ROIs[0].y_offset + 1.65*msg->ROIs[0].height;
+		//measurement1.at<double>(6,i) = msg->ROIs[0].x_offset + 0.75*msg->ROIs[0].width;
+		//measurement1.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;		
 		circle(output, cv::Point(measurement1.at<double>(2,i),measurement1.at<double>(3,i)), 2, Scalar(255,0,0), -1, 8);
-				
+			
 		measurement2.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
-		measurement2.at<double>(1,i) = msg->ROIs[0].y_offset + 0.3*msg->ROIs[0].height;
+		measurement2.at<double>(1,i) = msg->ROIs[0].y_offset + 0.5*msg->ROIs[0].height;
 		measurement2.at<double>(2,i) = props_2.at<double>(0,bins2[i]);
 		measurement2.at<double>(3,i) = props_2.at<double>(1,bins2[i]);
 		measurement2.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
-		measurement2.at<double>(5,i) = msg->ROIs[0].y_offset + 0.7*msg->ROIs[0].height;
-		measurement2.at<double>(6,i) = msg->ROIs[0].x_offset + 0.25*msg->ROIs[0].width;
-		measurement2.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;
+		measurement2.at<double>(5,i) = msg->ROIs[0].y_offset + 1.65*msg->ROIs[0].height;
+		//measurement2.at<double>(6,i) = msg->ROIs[0].x_offset + 0.25*msg->ROIs[0].width;
+		//measurement2.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;
 		circle(output, cv::Point(measurement2.at<double>(2,i),measurement2.at<double>(3,i)), 2, Scalar(0,0,255), -1, 8);
 	}
 				
