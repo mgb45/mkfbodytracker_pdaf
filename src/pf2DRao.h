@@ -18,7 +18,7 @@ class ParticleFilter
 		void update(cv::Mat measurement);
 		cv::Mat getEstimator();
 		cv::Mat getSamples(cv::Mat H, cv::Mat M, int N);
-		void getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat input2, std::vector<double> &weight1, std::vector<double> &weight2, int N);
+		void getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat input2, std::vector<double> &weight1, std::vector<double> &weight2);
 		my_gmm gmm;
 		std::vector<int> resample(std::vector<double> weights, int N);
 	protected:

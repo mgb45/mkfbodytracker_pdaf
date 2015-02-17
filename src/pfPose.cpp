@@ -238,8 +238,8 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 	// Evaluate p(xj|A)
 	std::vector<double> p1_x_1,p1_x_2,p2_x_1,p2_x_2; 
 	
-	pf1->getSampleProb(h1_pca.t(), m1_pca.t(), props_1, props_2, p1_x_1, p2_x_1,N);
-	pf2->getSampleProb(h2_pca.t(), m2_pca.t(), props_1, props_2, p1_x_2, p2_x_2,N);
+	pf1->getSampleProb(h1_pca.t(), m1_pca.t(), props_1, props_2, p1_x_1, p2_x_1);
+	pf2->getSampleProb(h2_pca.t(), m2_pca.t(), props_1, props_2, p1_x_2, p2_x_2);
 	
 	std::vector<double> weights1;
 	std::vector<double> weights2;

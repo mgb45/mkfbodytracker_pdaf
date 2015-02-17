@@ -87,18 +87,20 @@ cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N)
 	RNG rng;
 	cv::Mat output = cv::Mat::zeros(2,N,CV_64F);
 	cv::Mat temp = cv::Mat::zeros(1,1,CV_64FC2);
-	cv::Mat noise = cv::Mat::zeros(1,1,CV_64FC2);
-	cv::Mat m =  cv::Mat::zeros(2,1,CV_64F);
+	//cv::Mat noise = cv::Mat::zeros(1,1,CV_64FC2);
+	//cv::Mat m =  cv::Mat::zeros(2,1,CV_64F);
 	cv::Mat C = cv::Mat::zeros(2,2,CV_64F);
-	setIdentity(C, cv::Scalar::all(22));
+	setIdentity(C, cv::Scalar::all(25));
+	
+	cv::Mat full_state = getEstimator();
 	Mat_<Vec2d> &U = reinterpret_cast<Mat_<Vec2d>&>(temp);
 	for (int k = 0; k < N; k++)
 	{
-		int j = rng.uniform(0,gmm.nParticles);
-		cv::Mat state = (H*gmm.tracks[j].state + M);
-		cv::Mat cov = H*gmm.tracks[j].cov*H.t();
+		//int j = rng.uniform(0,gmm.nParticles);
+		cv::Mat state = (H*full_state + M);//(H*gmm.tracks[j].state + M);
+		//cv::Mat cov = H*gmm.tracks[j].cov*H.t();
 		
-		randn(temp,state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
+		randn(temp,state.rowRange(Range(0,2)),C);
 		//randn(noise,m,C);
 		//temp = temp+noise;
 		
@@ -109,16 +111,18 @@ cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N)
 	return output;
 }
 
-void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat input2, std::vector<double> &weight1, std::vector<double> &weight2, int N)
+void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat input2, std::vector<double> &weight1, std::vector<double> &weight2)
 {
 	weight1.resize(input1.cols,0);
 	weight2.resize(input2.cols,0);
 	RNG rng;
-	for (int j = 0; j < N; j++)
-	{
-		int bin = j;//rng.uniform(0,gmm.nParticles);
-		cv::Mat state = (H*gmm.tracks[bin].state + M);
-		cv::Mat cov = H*gmm.tracks[bin].cov*H.t();
+	//for (int j = 0; j < N; j++)
+	//{
+		cv::Mat full_state = getEstimator();
+		
+		//int bin = j;//rng.uniform(0,gmm.nParticles);
+		cv::Mat state = (H*full_state + M);//(H*gmm.tracks[bin].state + M);
+		cv::Mat cov = 25*cv::Mat::eye(2,2,CV_64F);
 		
 		cv::Mat R = chol(cov(Range(0,2),Range(0,2)));
 		cv::Mat Rinv = R.inv();
@@ -132,15 +136,15 @@ void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat
 			cv::pow(x_u,2,temp);
 			reduce(temp,temp,1,CV_REDUCE_SUM,-1);
 			double quadform = temp.at<double>(0,0);
-			weight1[k] = weight1[k] + 1.0/(double)N*(exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
+			weight1[k] = weight1[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
 			
 			x_u = (input2.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
 			cv::pow(x_u,2,temp);
 			reduce(temp,temp,1,CV_REDUCE_SUM,-1);
 			quadform = temp.at<double>(0,0);
-			weight2[k] = weight2[k] + 1.0/(double)N*(exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
+			weight2[k] = weight2[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
 		}
-	}
+	//}
 }
 
 // Update stage
