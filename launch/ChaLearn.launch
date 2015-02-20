@@ -1,7 +1,7 @@
 <launch>
   <!-- Play video file using gscam -->
  
-  <arg name="FILENAME" default="/opt/ChaLearn/validation1/Sample00420/Sample00420_color"/>
+  <arg name="FILENAME" default="/opt/ChaLearn/validation3/Sample00667/Sample00667_color"/>
   <arg name="LOOP" default="false"/>
   <arg name="SAVE" default="false"/>
 

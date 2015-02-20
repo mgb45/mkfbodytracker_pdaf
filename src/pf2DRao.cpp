@@ -82,27 +82,21 @@ cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 	return output;
 }
 
-cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N)
+cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N,double scale)
 {
 	RNG rng;
 	cv::Mat output = cv::Mat::zeros(2,N,CV_64F);
 	cv::Mat temp = cv::Mat::zeros(1,1,CV_64FC2);
-	//cv::Mat noise = cv::Mat::zeros(1,1,CV_64FC2);
-	//cv::Mat m =  cv::Mat::zeros(2,1,CV_64F);
-	cv::Mat C = cv::Mat::zeros(2,2,CV_64F);
-	setIdentity(C, cv::Scalar::all(25));
 	
+	cv::Mat C = 0.85*scale*cv::Mat::eye(2,2,CV_64F);
+	
+	// Approximate posterior over hands with one gaussian
 	cv::Mat full_state = getEstimator();
 	Mat_<Vec2d> &U = reinterpret_cast<Mat_<Vec2d>&>(temp);
 	for (int k = 0; k < N; k++)
 	{
-		//int j = rng.uniform(0,gmm.nParticles);
-		cv::Mat state = (H*full_state + M);//(H*gmm.tracks[j].state + M);
-		//cv::Mat cov = H*gmm.tracks[j].cov*H.t();
-		
+		cv::Mat state = (H*full_state + M);
 		randn(temp,state.rowRange(Range(0,2)),C);
-		//randn(noise,m,C);
-		//temp = temp+noise;
 		
 		output.at<double>(0,k) = U(0,0)[0];
 		output.at<double>(1,k) = U(0,0)[1];
@@ -111,40 +105,37 @@ cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N)
 	return output;
 }
 
-void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat input2, std::vector<double> &weight1, std::vector<double> &weight2)
+void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat input2, std::vector<double> &weight1, std::vector<double> &weight2,double scale)
 {
 	weight1.resize(input1.cols,0);
 	weight2.resize(input2.cols,0);
-	RNG rng;
-	//for (int j = 0; j < N; j++)
-	//{
-		cv::Mat full_state = getEstimator();
-		
-		//int bin = j;//rng.uniform(0,gmm.nParticles);
-		cv::Mat state = (H*full_state + M);//(H*gmm.tracks[bin].state + M);
-		cv::Mat cov = 25*cv::Mat::eye(2,2,CV_64F);
-		
-		cv::Mat R = chol(cov(Range(0,2),Range(0,2)));
-		cv::Mat Rinv = R.inv();
 	
-		cv::Mat temp;
-		cv::log(R.diag(0),temp);
-		double logSqrtDetSigma = cv::sum(temp)[0];
-		for (int k = 0; k < input1.cols; k++)
-		{
-			cv::Mat x_u = (input1.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
-			cv::pow(x_u,2,temp);
-			reduce(temp,temp,1,CV_REDUCE_SUM,-1);
-			double quadform = temp.at<double>(0,0);
-			weight1[k] = weight1[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
+	// Aproximate posterior as Gaussian	
+	cv::Mat full_state = getEstimator();
+		
+	cv::Mat state = (H*full_state + M);
+	cv::Mat cov = 0.85*scale*cv::Mat::eye(2,2,CV_64F);
+		
+	cv::Mat R = chol(cov(Range(0,2),Range(0,2)));
+	cv::Mat Rinv = R.inv();
+	
+	cv::Mat temp;
+	cv::log(R.diag(0),temp);
+	double logSqrtDetSigma = cv::sum(temp)[0];
+	for (int k = 0; k < input1.cols; k++)
+	{
+		cv::Mat x_u = (input1.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
+		cv::pow(x_u,2,temp);
+		reduce(temp,temp,1,CV_REDUCE_SUM,-1);
+		double quadform = temp.at<double>(0,0);
+		weight1[k] = weight1[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
 			
-			x_u = (input2.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
-			cv::pow(x_u,2,temp);
-			reduce(temp,temp,1,CV_REDUCE_SUM,-1);
-			quadform = temp.at<double>(0,0);
-			weight2[k] = weight2[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
-		}
-	//}
+		x_u = (input2.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
+		cv::pow(x_u,2,temp);
+		reduce(temp,temp,1,CV_REDUCE_SUM,-1);
+		quadform = temp.at<double>(0,0);
+		weight2[k] = weight2[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
+	}
 }
 
 // Update stage
@@ -163,10 +154,10 @@ void ParticleFilter::update(cv::Mat measurement)
 		gmm.KFtracker[i].predict(gmm.tracks[j].state,gmm.tracks[j].cov);
 		weights.push_back(mvnpdf(measurement.col(j),gmm.KFtracker[i].H*gmm.tracks[j].state+gmm.KFtracker[i].BH,gmm.KFtracker[i].H*gmm.tracks[j].cov*gmm.KFtracker[i].H.t()+gmm.KFtracker[i].R));
 		wsum = wsum + weights[j];
-		//cout << weights[j] << " ";
 		gmm.KFtracker[i].update(measurement.col(j),gmm.tracks[j].state,gmm.tracks[j].cov);
 		temp.push_back(gmm.tracks[j]);
 	}
+	
 		
 	for (int i = 0; i < (int)gmm.tracks.size(); i++)
 	{

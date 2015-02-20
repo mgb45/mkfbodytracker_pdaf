@@ -51,7 +51,7 @@ void my_gmm::loadGaussian(cv::Mat u, cv::Mat s, cv::Mat &H, cv::Mat &m, double w
 	KF_model tracker;
 	
 	tracker.Q = (1-g*g)*s;
-	tracker.R = 15*cv::Mat::eye(6,6, CV_64F);
+	tracker.R = 5*cv::Mat::eye(6,6, CV_64F);
 		
 	tracker.F = g*cv::Mat::eye(s.cols,s.cols, CV_64F);
 		

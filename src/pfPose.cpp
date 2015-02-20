@@ -6,6 +6,7 @@ using namespace message_filters;
 
 PFTracker::PFTracker()
 {
+	// Messages
 	image_transport::ImageTransport it(nh);
 	
 	pub = it.advertise("/poseImage",1);
@@ -223,43 +224,47 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 	cv::Mat props_2 = cv::Mat::zeros(2,N,CV_64F);
 	if (init)
 	{
-		props_1 = pf1->getSamples(h1_pca.t(), m1_pca.t(),N);
-		props_2 = pf2->getSamples(h2_pca.t(), m2_pca.t(),N);
+		props_1 = pf1->getSamples(h1_pca.t(), m1_pca.t(),N,(double)msg->ROIs[0].width);
+		props_2 = pf2->getSamples(h2_pca.t(), m2_pca.t(),N,(double)msg->ROIs[0].width);
 	}
 	else
 	{
 		init = true;
-		cv::randu(props_1.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
-		cv::randu(props_2.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
-		cv::randu(props_1.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
-		cv::randu(props_2.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
+		int xmin = std::max(int(msg->ROIs[0].x_offset) - int(4*msg->ROIs[0].width),0);
+		int xmax = std::min(int(msg->ROIs[0].x_offset) + int(5*msg->ROIs[0].width),likelihood.cols);
+		int ymin = std::min(int(msg->ROIs[0].y_offset) + int(msg->ROIs[0].height),likelihood.rows);
+		int ymax = std::min(int(msg->ROIs[0].y_offset) + int(7*msg->ROIs[0].height),likelihood.rows);
+		cv::randu(props_1.row(0),xmin,xmax);
+		cv::randu(props_2.row(0),xmin,xmax);
+		cv::randu(props_1.row(1),ymin,ymax);
+		cv::randu(props_2.row(1),ymin,ymax);
 	}
 	
 	// Evaluate p(xj|A)
 	std::vector<double> p1_x_1,p1_x_2,p2_x_1,p2_x_2; 
 	
-	pf1->getSampleProb(h1_pca.t(), m1_pca.t(), props_1, props_2, p1_x_1, p2_x_1);
-	pf2->getSampleProb(h2_pca.t(), m2_pca.t(), props_1, props_2, p1_x_2, p2_x_2);
+	pf1->getSampleProb(h1_pca.t(), m1_pca.t(), props_1, props_2, p1_x_1, p2_x_1,(double)msg->ROIs[0].width);
+	pf2->getSampleProb(h2_pca.t(), m2_pca.t(), props_1, props_2, p1_x_2, p2_x_2,(double)msg->ROIs[0].width);
 	
 	std::vector<double> weights1;
 	std::vector<double> weights2;
 	
-	double Pa = 0.5;
+	double Pa = 0.2;
 	double sum1=0, sum2=0;
 	for (int j = 0; j < N; j++)
 	{
 		if ((props_1.at<double>(1,j) > 0)&&(props_1.at<double>(1,j) < likelihood.rows)&&(props_1.at<double>(0,j) > 0)&&(props_1.at<double>(0,j) < likelihood.cols))
 		{
 			circle(output, cv::Point(props_1.at<double>(0,j),props_1.at<double>(1,j)), 2, Scalar(0,255,0), -1, 8);
-			double L = (double)likelihood.at<uchar>(props_1.at<double>(1,j),props_1.at<double>(0,j));
+			double L = (double)likelihood.at<uchar>(props_1.at<double>(1,j),props_1.at<double>(0,j))/255.0;
 			if (L == 0)
 			{
 				weights1.push_back(0);
 			}
 			else
 			{
-				double Z = L*p1_x_1[j]*Pa + L*p1_x_2[j]*Pa;// + L*0.05*Pa;
-				ROS_INFO("P1: %f %f %f",L,Z,L*Pa/Z);
+				double Z = p1_x_1[j]*Pa + p1_x_2[j]*Pa + 1e-4*(1-2*Pa);
+				//ROS_INFO("P1: %f %f %f %f",L,p1_x_1[j],Z,L*Pa/Z);
 				weights1.push_back(L*Pa/Z);
 				sum1 = sum1+weights1[j];
 			}
@@ -272,15 +277,15 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		if ((props_2.at<double>(1,j) > 0)&&(props_2.at<double>(1,j) < likelihood.rows)&&(props_2.at<double>(0,j) > 0)&&(props_2.at<double>(0,j) < likelihood.cols))
 		{
 			circle(output, cv::Point(props_2.at<double>(0,j),props_2.at<double>(1,j)), 2, Scalar(0,255,0), -1, 8);
-			double L = (double)likelihood.at<uchar>(props_2.at<double>(1,j),props_2.at<double>(0,j));
+			double L = (double)likelihood.at<uchar>(props_2.at<double>(1,j),props_2.at<double>(0,j))/255.0;
 			if (L == 0)
 			{
 				weights2.push_back(0);
 			}
 			else
 			{
-				double Z = L*p2_x_2[j]*Pa + L*p2_x_1[j]*Pa;// + L*0.05*Pa;
-				ROS_INFO("P2: %f %f %f",L,Z,L*Pa/Z);
+				double Z = p2_x_2[j]*Pa + p2_x_1[j]*Pa + 1e-4*(1-2*Pa);
+				//ROS_INFO("P2: %f %f %f",L,Z,L*Pa/Z);
 				weights2.push_back(L*Pa/Z);
 				sum2 = sum2+weights2[j];
 			}
@@ -291,17 +296,26 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		}
 	}
 	
-	if (sum1 == 0)
-	{
-		cv::randu(props_1.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
-		cv::randu(props_1.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
-	}
+	//if (sum1 == 0)
+	//{
+		//int xmin = std::max(int(msg->ROIs[0].x_offset) - int(4*msg->ROIs[0].width),0);
+		//int xmax = std::min(int(msg->ROIs[0].x_offset) + int(5*msg->ROIs[0].width),likelihood.cols);
+		//int ymin = std::min(int(msg->ROIs[0].y_offset) + int(msg->ROIs[0].height),likelihood.rows);
+		//int ymax = std::min(int(msg->ROIs[0].y_offset) + int(7*msg->ROIs[0].height),likelihood.rows);
+		//cv::randu(props_1.row(0),xmin,xmax);
+		//cv::randu(props_1.row(1),ymin,ymax);
+		
+	//}
 	
-	if (sum2 == 0)
-	{
-		cv::randu(props_2.row(0),msg->ROIs[0].x_offset - 4*msg->ROIs[0].width,msg->ROIs[0].x_offset + 5*msg->ROIs[0].width);
-		cv::randu(props_2.row(1),msg->ROIs[0].y_offset + msg->ROIs[0].height,msg->ROIs[0].y_offset + 8*msg->ROIs[0].height);
-	}
+	//if (sum2 == 0)
+	//{
+		//int xmin = std::max(int(msg->ROIs[0].x_offset) - int(4*msg->ROIs[0].width),0);
+		//int xmax = std::min(int(msg->ROIs[0].x_offset) + int(5*msg->ROIs[0].width),likelihood.cols);
+		//int ymin = std::min(int(msg->ROIs[0].y_offset) + int(msg->ROIs[0].height),likelihood.rows);
+		//int ymax = std::min(int(msg->ROIs[0].y_offset) + int(7*msg->ROIs[0].height),likelihood.rows);
+		//cv::randu(props_2.row(1),ymin,ymax);
+		//cv::randu(props_2.row(0),xmin,xmax);
+	//}
 	
 	for (int j = 0; j < N; j++)
 	{
@@ -337,7 +351,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		//measurement2.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;
 		circle(output, cv::Point(measurement2.at<double>(2,i),measurement2.at<double>(3,i)), 2, Scalar(0,0,255), -1, 8);
 	}
-				
+	
 	pf1->update(measurement1); // particle filter measurement left arm
 	pf2->update(measurement2); // particle filter measurement right arm
 		
