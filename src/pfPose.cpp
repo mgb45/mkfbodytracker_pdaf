@@ -230,10 +230,10 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 	else
 	{
 		init = true;
-		int xmin = std::max(int(msg->ROIs[0].x_offset) - int(4*msg->ROIs[0].width),0);
-		int xmax = std::min(int(msg->ROIs[0].x_offset) + int(5*msg->ROIs[0].width),likelihood.cols);
+		int xmin = 0;
+		int xmax = likelihood.cols;
 		int ymin = std::min(int(msg->ROIs[0].y_offset) + int(msg->ROIs[0].height),likelihood.rows);
-		int ymax = std::min(int(msg->ROIs[0].y_offset) + int(7*msg->ROIs[0].height),likelihood.rows);
+		int ymax = likelihood.rows;
 		cv::randu(props_1.row(0),xmin,xmax);
 		cv::randu(props_2.row(0),xmin,xmax);
 		cv::randu(props_1.row(1),ymin,ymax);

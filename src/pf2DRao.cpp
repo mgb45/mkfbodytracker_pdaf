@@ -88,7 +88,7 @@ cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N,double scale)
 	cv::Mat output = cv::Mat::zeros(2,N,CV_64F);
 	cv::Mat temp = cv::Mat::zeros(1,1,CV_64FC2);
 	
-	cv::Mat C = 0.55*scale*cv::Mat::eye(2,2,CV_64F);
+	cv::Mat C = 0.35*scale*cv::Mat::eye(2,2,CV_64F);
 	
 	// Approximate posterior over hands with one gaussian
 	cv::Mat full_state = getEstimator();
@@ -114,7 +114,7 @@ void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat
 	cv::Mat full_state = getEstimator();
 		
 	cv::Mat state = (H*full_state + M);
-	cv::Mat cov = 0.55*scale*cv::Mat::eye(2,2,CV_64F);
+	cv::Mat cov = 0.35*scale*cv::Mat::eye(2,2,CV_64F);
 		
 	cv::Mat R = chol(cov(Range(0,2),Range(0,2)));
 	cv::Mat Rinv = R.inv();
