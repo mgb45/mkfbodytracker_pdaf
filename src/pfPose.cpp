@@ -263,7 +263,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 			}
 			else
 			{
-				double Z = p1_x_1[j]*Pa + p1_x_2[j]*Pa + 1e-4*(1-2*Pa);
+				double Z = p1_x_1[j]*Pa + p1_x_2[j]*Pa + 5e-5*(1-2*Pa);
 				//ROS_INFO("P1: %f %f %f %f",L,p1_x_1[j],Z,L*Pa/Z);
 				weights1.push_back(L*Pa/Z);
 				sum1 = sum1+weights1[j];
@@ -284,7 +284,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 			}
 			else
 			{
-				double Z = p2_x_2[j]*Pa + p2_x_1[j]*Pa + 1e-4*(1-2*Pa);
+				double Z = p2_x_2[j]*Pa + p2_x_1[j]*Pa + 5e-5*(1-2*Pa);
 				//ROS_INFO("P2: %f %f %f",L,Z,L*Pa/Z);
 				weights2.push_back(L*Pa/Z);
 				sum2 = sum2+weights2[j];
