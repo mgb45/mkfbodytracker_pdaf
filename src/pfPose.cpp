@@ -170,7 +170,7 @@ void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
 	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "cam"));
 }
 
-void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArrayConstPtr& msg)
+void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArrayConstPtr& msg, int frame_id)
 {
 	// Create result message
 	measurementproposals::HFPose2D rosHands;
@@ -201,14 +201,9 @@ void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArray
 	rosHandsArr.measurements.push_back(rosHands); //Shoulder2
 		
 	rosHandsArr.header = msg->header;
-	if (msg->ROIs.size() > 0)
-	{
-		rosHandsArr.id = msg->ids[0];
-	}
-	else
-	{
-		rosHandsArr.id = "0";
-	}
+	char str[8];
+	sprintf(str,"%d",frame_id);
+	rosHandsArr.id = str;
 	hand_pub.publish(rosHandsArr);
 }
 
@@ -362,6 +357,9 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const faceTracking::ROIArrayConstPtr& msg)
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; 
+	
+	int frame_id = image.at<cv::Vec3b>(1,1)[1]*255 + image.at<cv::Vec3b>(1,2)[1];
+	
 	cv::Mat likelihood = (cv_bridge::toCvCopy(like_msg, sensor_msgs::image_encodings::MONO8))->image; 
 	
 	if (msg->ROIs.size() > 0)
@@ -375,7 +373,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_m
 		cv::Mat e2 = h2_pca.t()*pf2->getEstimator() + m2_pca.t();
 	
 		publishTFtree(e1,e2);
-		publish2Dpos(e1,e2,msg);
+		publish2Dpos(e1,e2,msg,frame_id);
 		
 		//Draw stick man on result image
 		//Result vector arrangment	
@@ -400,7 +398,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_m
 		cv::Mat e2 = cv::Mat::zeros(1,15,CV_64F);
 		
 		//publishTFtree(e1,e2);
-		publish2Dpos(e1,e2,msg);
+		publish2Dpos(e1,e2,msg,frame_id);
 		
 	}		
 		

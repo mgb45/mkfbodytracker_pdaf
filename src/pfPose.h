@@ -55,7 +55,7 @@ class PFTracker
 		cv::Mat get3Dpose(cv::Mat estimate);
 				
 		void publishTFtree(cv::Mat e1, cv::Mat e2);
-		void publish2Dpos(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg);
+		void publish2Dpos(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg, int frame_id);
 						
 		cv::Mat getMeasurementProposal(cv::Mat likelihood, const faceTracking::ROIArrayConstPtr& msg);
 		
