@@ -126,7 +126,7 @@ cv::Mat PFTracker::get3Dpose(cv::Mat estimate)
 	return pos3D;
 }
 
-void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
+void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg)
 {
 	cv::Mat p3D1 = get3Dpose(e1);
 	cv::Mat p3D2 = get3Dpose(e2);
@@ -142,9 +142,9 @@ void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
 	for (int k = 0; k < 2; k++)
 	{
 		transform.setOrigin(tf::Vector3(p3D1.at<double>(0,k) - p3D1.at<double>(0,k+1), p3D1.at<double>(2,k) - p3D1.at<double>(2,k+1), -p3D1.at<double>(1,k)+p3D1.at<double>(1,k+1)));
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr1[k+1].c_str(), strArr1[k].c_str()));
+		br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, strArr1[k+1].c_str(), strArr1[k].c_str()));
 		transform.setOrigin(tf::Vector3(p3D2.at<double>(0,k) - p3D2.at<double>(0,k+1), p3D2.at<double>(2,k) - p3D2.at<double>(2,k+1), -p3D2.at<double>(1,k)+p3D2.at<double>(1,k+1)));
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), strArr2[k+1].c_str(), strArr2[k].c_str()));
+		br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, strArr2[k+1].c_str(), strArr2[k].c_str()));
 	}
 
 	double neck_x = (p3D1.at<double>(0,4) + p3D2.at<double>(0,4))/2.0;
@@ -155,19 +155,19 @@ void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2)
 	double head_z = (p3D1.at<double>(2,3) + p3D2.at<double>(2,3))/2.0;
 
 	transform.setOrigin(tf::Vector3(p3D1.at<double>(0,2) - neck_x, p3D1.at<double>(2,2) - neck_z, -p3D1.at<double>(1,2) + neck_y));
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Neck", strArr1[2].c_str()));
+	br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, "Neck", strArr1[2].c_str()));
 	transform.setOrigin(tf::Vector3(p3D2.at<double>(0,2) - neck_x, p3D2.at<double>(2,2) - neck_z, -p3D2.at<double>(1,2) + neck_y));
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Neck", strArr2[2].c_str()));
+	br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, "Neck", strArr2[2].c_str()));
 	transform.setOrigin(tf::Vector3(neck_x - head_x, neck_z - head_z, -neck_y + head_y));
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "Head", "Neck"));
+	br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, "Head", "Neck"));
 	transform.setOrigin(tf::Vector3(head_x, head_z, -head_y));
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "Head"));
+	br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, "world", "Head"));
 
 	transform.setOrigin(tf::Vector3(-e1.at<double>(0,18), -e1.at<double>(0,20), e1.at<double>(0,19)));
 	tf::Quaternion cam_rot;
 	cam_rot.setEuler(-e1.at<double>(0,16),-e1.at<double>(0,17),-e1.at<double>(0,15));
 	transform.setRotation(cam_rot);
-	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "cam"));
+	br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, "world", "cam"));
 }
 
 void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArrayConstPtr& msg, int frame_id)
@@ -372,7 +372,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_m
 		cv::Mat e1 = h1_pca.t()*pf1->getEstimator() + m1_pca.t(); // Weighted average pose estimate
 		cv::Mat e2 = h2_pca.t()*pf2->getEstimator() + m2_pca.t();
 	
-		publishTFtree(e1,e2);
+		publishTFtree(e1,e2,msg);
 		publish2Dpos(e1,e2,msg,frame_id);
 		
 		//Draw stick man on result image
@@ -394,10 +394,9 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_m
 	}
 	else
 	{
-		cv::Mat e1 = cv::Mat::zeros(1,15,CV_64F);
-		cv::Mat e2 = cv::Mat::zeros(1,15,CV_64F);
+		cv::Mat e1 = cv::Mat::zeros(1,24,CV_64F);
+		cv::Mat e2 = cv::Mat::zeros(1,24,CV_64F);
 		
-		//publishTFtree(e1,e2);
 		publish2Dpos(e1,e2,msg,frame_id);
 		
 	}		
