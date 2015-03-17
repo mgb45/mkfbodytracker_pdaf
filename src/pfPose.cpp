@@ -213,7 +213,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 	GaussianBlur(likelihood, likelihood, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
 	cvtColor(likelihood, output, CV_GRAY2RGB);
 	
-	int N = numParticles;
+	int N = 10*numParticles;
 	// Get measurement proposals, xj ~ p(x|A)
 	cv::Mat props_1 = cv::Mat::zeros(2,N,CV_64F);
 	cv::Mat props_2 = cv::Mat::zeros(2,N,CV_64F);
@@ -244,7 +244,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 	std::vector<double> weights1;
 	std::vector<double> weights2;
 	
-	double Pa = 0.2;
+	double Pa = 0.05;
 	double sum1=0, sum2=0;
 	for (int j = 0; j < N; j++)
 	{
@@ -260,7 +260,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 			{
 				double Z = p1_x_1[j]*Pa + p1_x_2[j]*Pa + 1e-4*(1-2*Pa);
 				//ROS_INFO("P1: %f %f %f %f",L,p1_x_1[j],Z,L*Pa/Z);
-				weights1.push_back(L*Pa/Z);
+				weights1.push_back(L/Z);
 				sum1 = sum1+weights1[j];
 			}
 		}
@@ -281,7 +281,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 			{
 				double Z = p2_x_2[j]*Pa + p2_x_1[j]*Pa + 1e-4*(1-2*Pa);
 				//ROS_INFO("P2: %f %f %f",L,Z,L*Pa/Z);
-				weights2.push_back(L*Pa/Z);
+				weights2.push_back(L/Z);
 				sum2 = sum2+weights2[j];
 			}
 		}
@@ -290,27 +290,6 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 			weights2.push_back(0);
 		}
 	}
-	
-	//if (sum1 == 0)
-	//{
-		//int xmin = std::max(int(msg->ROIs[0].x_offset) - int(4*msg->ROIs[0].width),0);
-		//int xmax = std::min(int(msg->ROIs[0].x_offset) + int(5*msg->ROIs[0].width),likelihood.cols);
-		//int ymin = std::min(int(msg->ROIs[0].y_offset) + int(msg->ROIs[0].height),likelihood.rows);
-		//int ymax = std::min(int(msg->ROIs[0].y_offset) + int(7*msg->ROIs[0].height),likelihood.rows);
-		//cv::randu(props_1.row(0),xmin,xmax);
-		//cv::randu(props_1.row(1),ymin,ymax);
-		
-	//}
-	
-	//if (sum2 == 0)
-	//{
-		//int xmin = std::max(int(msg->ROIs[0].x_offset) - int(4*msg->ROIs[0].width),0);
-		//int xmax = std::min(int(msg->ROIs[0].x_offset) + int(5*msg->ROIs[0].width),likelihood.cols);
-		//int ymin = std::min(int(msg->ROIs[0].y_offset) + int(msg->ROIs[0].height),likelihood.rows);
-		//int ymax = std::min(int(msg->ROIs[0].y_offset) + int(7*msg->ROIs[0].height),likelihood.rows);
-		//cv::randu(props_2.row(1),ymin,ymax);
-		//cv::randu(props_2.row(0),xmin,xmax);
-	//}
 	
 	for (int j = 0; j < N; j++)
 	{
@@ -332,8 +311,6 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		measurement1.at<double>(3,i) = props_1.at<double>(1,bins1[i]);
 		measurement1.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
 		measurement1.at<double>(5,i) = msg->ROIs[0].y_offset + 1.65*msg->ROIs[0].height;
-		//measurement1.at<double>(6,i) = msg->ROIs[0].x_offset + 0.75*msg->ROIs[0].width;
-		//measurement1.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;		
 		circle(output, cv::Point(measurement1.at<double>(2,i),measurement1.at<double>(3,i)), 2, Scalar(255,0,0), -1, 8);
 			
 		measurement2.at<double>(0,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
@@ -342,8 +319,6 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 		measurement2.at<double>(3,i) = props_2.at<double>(1,bins2[i]);
 		measurement2.at<double>(4,i) = msg->ROIs[0].x_offset + msg->ROIs[0].width/2.0;
 		measurement2.at<double>(5,i) = msg->ROIs[0].y_offset + 1.65*msg->ROIs[0].height;
-		//measurement2.at<double>(6,i) = msg->ROIs[0].x_offset + 0.25*msg->ROIs[0].width;
-		//measurement2.at<double>(7,i) = msg->ROIs[0].y_offset + 0.8*msg->ROIs[0].height;
 		circle(output, cv::Point(measurement2.at<double>(2,i),measurement2.at<double>(3,i)), 2, Scalar(0,0,255), -1, 8);
 	}
 	
@@ -394,6 +369,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_m
 	}
 	else
 	{
+		init = false;
 		cv::Mat e1 = cv::Mat::zeros(1,24,CV_64F);
 		cv::Mat e2 = cv::Mat::zeros(1,24,CV_64F);
 		

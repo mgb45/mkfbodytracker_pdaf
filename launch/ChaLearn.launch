@@ -1,11 +1,11 @@
 <launch>
   <!-- Play video file using gscam -->
  
-  <arg name="FILENAME" default="/opt/ChaLearn/validation3/Sample00667/"/>
+  <arg name="FILENAME" default="/opt/ChaLearn/validation1/Sample00410/"/>
   <arg name="SAVE" default="false"/>
 
-  <arg name="file1" default="/data13D_PCA_100000_15_12.yml"/>
-  <arg name="file2" default="/data23D_PCA_100000_15_12.yml"/>
+  <arg name="file1" default="/data13D_PCA_250000_35_10.yml"/>
+  <arg name="file2" default="/data23D_PCA_250000_35_10.yml"/>
 
   <param name="left_arm_training" value="$(arg file1)"/>
   <param name="right_arm_training" value="$(arg file2)"/>
@@ -30,22 +30,14 @@
 	<param name="image_dir" value="$(arg FILENAME)"/>
 	<param name="file_pattern" value="*.jpg"/>
         <param name="camera_info_file" value="/home/mgb45/Documents/ros_workspace/mkfbodytracker/cal.yml"/>
-        <param name="frequency" value="10"/>
+        <param name="frequency" value="20"/>
   </node>
 
-<!--  <node pkg="image_view" type="image_view" name ="im0">
-	<remap from="image" to ="camera/image_raw"/>
-  </node>
-
-  <node pkg="image_view" type="image_view" name ="im3">
-        <remap from="image" to ="likelihood"/>
-  </node>
-
-  <node pkg="image_view" type="image_view" name ="im2">
+<!--  <node pkg="image_view" type="image_view" name ="im2">
 	<remap from="image" to ="probImage"/>
   </node>
 
-  <node pkg="image_view" type="image_view" name ="im4">
+ <node pkg="image_view" type="image_view" name ="im4">
         <remap from="image" to ="poseImage"/>
   </node> -->
 

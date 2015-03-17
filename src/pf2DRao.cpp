@@ -66,7 +66,7 @@ double ParticleFilter::mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 	return (exp(-0.5*quadform - logSqrtDetSigma - x.rows*log(2.0*M_PI)/2.0));
 }
 
-cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
+cv::Mat ParticleFilter::mvnpdf_multiple(cv::Mat x, cv::Mat u, cv::Mat sigma)
 {
 	cv::Mat sigma_i = chol(sigma);
 	cv::Mat x_u = (x - repeat(u,1,x.cols)).t()*sigma_i.inv();
@@ -84,24 +84,21 @@ cv::Mat ParticleFilter::logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma)
 
 cv::Mat ParticleFilter::getSamples(cv::Mat H, cv::Mat M, int N,double scale)
 {
-	RNG rng;
 	cv::Mat output = cv::Mat::zeros(2,N,CV_64F);
-	cv::Mat temp = cv::Mat::zeros(1,1,CV_64FC2);
+	cv::Mat temp = cv::Mat::zeros(1,N,CV_64FC2);
 	
-	cv::Mat C = 0.85*scale*cv::Mat::eye(2,2,CV_64F);
+	cv::Mat C = 0.8*scale*cv::Mat::eye(2,2,CV_64F);
 	
 	// Approximate posterior over hands with one gaussian
 	cv::Mat full_state = getEstimator();
-	Mat_<Vec2d> &U = reinterpret_cast<Mat_<Vec2d>&>(temp);
-	for (int k = 0; k < N; k++)
-	{
-		cv::Mat state = (H*full_state + M);
-		randn(temp,state.rowRange(Range(0,2)),C);
-		
-		output.at<double>(0,k) = U(0,0)[0];
-		output.at<double>(1,k) = U(0,0)[1];
-	}
+	cv::Mat state = (H*full_state + M);
 	
+	randn(temp,state.rowRange(Range(0,2)),C);
+	
+	std::vector<cv::Mat> ch;
+	split(temp,ch);
+	vconcat(ch[0],ch[1],output);
+		
 	return output;
 }
 
@@ -114,28 +111,14 @@ void ParticleFilter::getSampleProb(cv::Mat H, cv::Mat M, cv::Mat input1, cv::Mat
 	cv::Mat full_state = getEstimator();
 		
 	cv::Mat state = (H*full_state + M);
-	cv::Mat cov = 0.85*scale*cv::Mat::eye(2,2,CV_64F);
-		
-	cv::Mat R = chol(cov(Range(0,2),Range(0,2)));
-	cv::Mat Rinv = R.inv();
+	cv::Mat cov = 0.8*scale*cv::Mat::eye(2,2,CV_64F);
 	
-	cv::Mat temp;
-	cv::log(R.diag(0),temp);
-	double logSqrtDetSigma = cv::sum(temp)[0];
-	for (int k = 0; k < input1.cols; k++)
-	{
-		cv::Mat x_u = (input1.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
-		cv::pow(x_u,2,temp);
-		reduce(temp,temp,1,CV_REDUCE_SUM,-1);
-		double quadform = temp.at<double>(0,0);
-		weight1[k] = weight1[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
-			
-		x_u = (input2.col(k) - state.rowRange(Range(0,2))).t()*Rinv;
-		cv::pow(x_u,2,temp);
-		reduce(temp,temp,1,CV_REDUCE_SUM,-1);
-		quadform = temp.at<double>(0,0);
-		weight2[k] = weight2[k] + (exp(-0.5*quadform - logSqrtDetSigma - 2*log(2.0*M_PI)/2.0));
-	}
+	cv::Mat w1 = mvnpdf_multiple(input1,state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
+	cv::Mat w2 = mvnpdf_multiple(input2,state.rowRange(Range(0,2)),cov(Range(0,2),Range(0,2)));
+	
+	w1.copyTo(weight1);
+	w2.copyTo(weight2);
+		
 }
 
 // Update stage

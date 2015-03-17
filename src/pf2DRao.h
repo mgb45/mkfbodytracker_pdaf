@@ -24,7 +24,7 @@ class ParticleFilter
 	protected:
 		cv::Mat chol(cv::Mat in);
 		double mvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma);
-		cv::Mat logmvnpdf(cv::Mat x, cv::Mat u, cv::Mat sigma);
+		cv::Mat mvnpdf_multiple(cv::Mat x, cv::Mat u, cv::Mat sigma);
 		double wsum;
 		double maxWeight(std::vector<double> weights);
 		cv::Mat idx_v;
