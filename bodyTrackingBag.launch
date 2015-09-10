@@ -5,29 +5,22 @@
   <param name="left_arm_training" value="$(arg file1)"/> 
   <param name="right_arm_training" value="$(arg file2)"/> 
 
-  <node pkg="faceTracking" type="faceTrack" name="faceDetector" output="screen">
-	<remap from="image" to="/rgb/image_raw"/>
+  <node pkg="facetracking" type="faceTrack" name="faceDetector" output="screen">
+	<remap from="image" to="/rgb/image_color"/>
   </node>
 
-<!--  <node pkg="openni_camera" type="openni_node" name="kinect">
-	  <param name="/image_mode" value="2"/>
-  </node> -->
+  <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/mburke/Downloads/2014-08-05-14-43-42.bag"/>
 
 
-  <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/mgb45/Desktop/2014-01-31-13-02-00.bag"/>
-
-<!-- /home/mgb45/Desktop/2013-11-12-17-02-51.bag"/> -->
-
-
-  <node pkg="handBlobTracker" type="handTracker" name="handTracker" output="screen">
-	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
+  <node pkg="handblobtracker" type="handTracker" name="handTracker" output="screen">
+<!--	<remap from="/rgb/image_color" to="/rgb/image_raw"/>-->
   </node>
 
-  <node pkg="mkfbodytracker" type="poseTracker" name="poseTracker" output="screen">
-	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
+  <node pkg="mkfbodytracker_pdaf" type="poseTracker" name="poseTracker" output="screen">
+<!--	<remap from="/rgb/image_color" to="/rgb/image_raw"/>-->
   </node>
 
-<node pkg="rviz" type="rviz" name="rviz" args="-d $(find pfBodyTracker)/view.rviz"/>
+<node pkg="rviz" type="rviz" name="rviz"/>
 
 
 </launch>

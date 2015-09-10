@@ -11,23 +11,23 @@ PFTracker::PFTracker()
 	pub = it.advertise("/poseImage",10);
 	edge_pub = it.advertise("/handImage",10);
 	prob_pub = it.advertise("/probImage",10);
-	hand_pub = nh.advertise<handBlobTracker::HFPose2DArray>("/correctedFaceHandPose", 10);
+	hand_pub = nh.advertise<handblobtracker::HFPose2DArray>("/correctedFaceHandPose", 10);
 		
 	image_sub.subscribe(nh, "/rgb/image_color", 1);
 	pose_sub.subscribe(nh, "/faceHandPose", 1); 
 		
-	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>(image_sub,pose_sub,20);
+	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, handblobtracker::HFPose2DArray>(image_sub,pose_sub,20);
 	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2));
 	
 	// Load Kinect GMM priors
 	std::stringstream ss1;
 	std::string left_arm_training;
 	ros::param::param<std::string>("left_arm_training", left_arm_training, "/training/data13D_PCA_100000_29_13.yml");
-	ss1 << ros::package::getPath("mkfbodytracker") << left_arm_training;
+	ss1 << ros::package::getPath("mkfbodytracker_pdaf") << left_arm_training;
 	std::stringstream ss2;
 	std::string right_arm_training;
 	ros::param::param<std::string>("right_arm_training", right_arm_training, "/training/data23D_PCA_100000_29_13.yml");
-	ss2 << ros::package::getPath("mkfbodytracker") << right_arm_training;
+	ss2 << ros::package::getPath("mkfbodytracker_pdaf") << right_arm_training;
 	ROS_INFO("Getting data from %s",ss1.str().c_str());
 	ROS_INFO("Getting data from %s",ss2.str().c_str());
 	cv::FileStorage fs1(ss1.str(), FileStorage::READ);
@@ -123,7 +123,7 @@ cv::Mat PFTracker::get3Dpose(cv::Mat estimate)
 	return pos3D;
 }
 
-bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3)
+bool PFTracker::edgePoseCorrection(cv::Mat image4, handblobtracker::HFPose2DArray pfPose, cv::Mat image3)
 {
 	bool value = true;
 	
@@ -215,7 +215,7 @@ bool PFTracker::edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArra
 	return value;
 }
 
-cv::Mat PFTracker::associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg)
+cv::Mat PFTracker::associateHands(const handblobtracker::HFPose2DArrayConstPtr& msg)
 {
 	cv::Mat pt1 = (cv::Mat_<double>(2,1) << msg->measurements[0].x, msg->measurements[0].y);
 	cv::Mat pt2 = (cv::Mat_<double>(2,1) << msg->measurements[1].x, msg->measurements[1].y);
@@ -252,7 +252,7 @@ void PFTracker::getProbImage(cv::Mat e1, cv::Mat e2)
 }
 
 // perform particle filter update to estimate upper body joint positions
-void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg)
+void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handblobtracker::HFPose2DArrayConstPtr& msg)
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; //ROS
 	
@@ -285,7 +285,7 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		cv::Mat p3D1 = get3Dpose(e1);
 		cv::Mat p3D2 = get3Dpose(e2);
 		
-		getProbImage(e1,e2);
+		//getProbImage(e1,e2);
 
 		// Publish tf tree for rviz
 		std::string strArr2[] = {"Left_Hand", "Left_Elbow", "Left_Shoulder"};
@@ -330,8 +330,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		// 0 1 2  3 4 5  6 7 8 9 10 11  12 13 14
 		
 		// Create result message
-		handBlobTracker::HFPose2D rosHands;
-		handBlobTracker::HFPose2DArray rosHandsArr;
+		handblobtracker::HFPose2D rosHands;
+		handblobtracker::HFPose2DArray rosHandsArr;
 		rosHands.x = e1.at<double>(0,0);
 		rosHands.y = e1.at<double>(0,1);
 		rosHandsArr.names.push_back("Left Hand");
@@ -422,8 +422,8 @@ void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const handBlob
 		edge_heuristic = 2e-1;
 		
 		//Publish zeros
-		handBlobTracker::HFPose2D rosHands;
-		handBlobTracker::HFPose2DArray rosHandsArr;
+		handblobtracker::HFPose2D rosHands;
+		handblobtracker::HFPose2DArray rosHandsArr;
 		rosHands.x = 0;
 		rosHands.y = 0;
 		rosHandsArr.names.push_back("Left Hand");

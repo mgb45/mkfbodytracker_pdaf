@@ -21,8 +21,8 @@
 #include <string>
 #include <ros/package.h>
 #include "opencv2/ml/ml.hpp"
-#include "handBlobTracker/HFPose2D.h"
-#include "handBlobTracker/HFPose2DArray.h"
+#include "handblobtracker/HFPose2D.h"
+#include "handblobtracker/HFPose2DArray.h"
 #include <tf/transform_broadcaster.h>
 
 class PFTracker
@@ -43,16 +43,16 @@ class PFTracker
 		
 		cv::Mat m1_pca, m2_pca, h1_pca, h2_pca;
 				
-		void callback(const sensor_msgs::ImageConstPtr& immsg, const handBlobTracker::HFPose2DArrayConstPtr& msg);
+		void callback(const sensor_msgs::ImageConstPtr& immsg, const handblobtracker::HFPose2DArrayConstPtr& msg);
 		
-		message_filters::TimeSynchronizer<sensor_msgs::Image, handBlobTracker::HFPose2DArray>* sync;
+		message_filters::TimeSynchronizer<sensor_msgs::Image, handblobtracker::HFPose2DArray>* sync;
 		message_filters::Subscriber<sensor_msgs::Image> image_sub;
-		message_filters::Subscriber<handBlobTracker::HFPose2DArray> pose_sub;	
+		message_filters::Subscriber<handblobtracker::HFPose2DArray> pose_sub;	
 		
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
-		cv::Mat associateHands(const handBlobTracker::HFPose2DArrayConstPtr& msg);
-		bool edgePoseCorrection(cv::Mat image4, handBlobTracker::HFPose2DArray pfPose, cv::Mat image3);
+		cv::Mat associateHands(const handblobtracker::HFPose2DArrayConstPtr& msg);
+		bool edgePoseCorrection(cv::Mat image4, handblobtracker::HFPose2DArray pfPose, cv::Mat image3);
 		void getProbImage(cv::Mat e1, cv::Mat e2);
 		double edge_heuristic;
 		bool swap;
