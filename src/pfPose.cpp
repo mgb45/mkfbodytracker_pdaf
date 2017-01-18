@@ -11,13 +11,13 @@ PFTracker::PFTracker()
 	
 	pub = it.advertise("/poseImage",1);
 	prob_pub = it.advertise("/probImage",1);
-	hand_pub = nh.advertise<measurementproposals::HFPose2DArray>("/correctedFaceHandPose", 10);
+	hand_pub = nh.advertise<handblobtracker::HFPose2DArray>("/correctedFaceHandPose", 10);
 		
 	image_sub.subscribe(nh, "/rgb/image_raw", 5);
 	likelihood_sub.subscribe(nh, "/likelihood", 5);
 	pose_sub.subscribe(nh, "/faceROIs", 10); 
 		
-	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, faceTracking::ROIArray>(image_sub,likelihood_sub,pose_sub,20);
+	sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, facetracking::ROIArray>(image_sub,likelihood_sub,pose_sub,20);
 	sync->registerCallback(boost::bind(&PFTracker::callback, this, _1, _2, _3));
 	
 	// Load Kinect GMM priors
@@ -126,7 +126,7 @@ cv::Mat PFTracker::get3Dpose(cv::Mat estimate)
 	return pos3D;
 }
 
-void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg)
+void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2, const facetracking::ROIArrayConstPtr& msg)
 {
 	cv::Mat p3D1 = get3Dpose(e1);
 	cv::Mat p3D2 = get3Dpose(e2);
@@ -170,11 +170,11 @@ void PFTracker::publishTFtree(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArr
 	br.sendTransform(tf::StampedTransform(transform, msg->header.stamp, "world", "cam"));
 }
 
-void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArrayConstPtr& msg, int frame_id)
+void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const facetracking::ROIArrayConstPtr& msg, int frame_id)
 {
 	// Create result message
-	measurementproposals::HFPose2D rosHands;
-	measurementproposals::HFPose2DArray rosHandsArr;
+	handblobtracker::HFPose2D rosHands;
+	handblobtracker::HFPose2DArray rosHandsArr;
 	rosHands.x = e1.at<double>(0,0);
 	rosHands.y = e1.at<double>(0,1);
 	rosHandsArr.measurements.push_back(rosHands); //hand1
@@ -207,7 +207,7 @@ void PFTracker::publish2Dpos(cv::Mat e1, cv::Mat e2,const faceTracking::ROIArray
 	hand_pub.publish(rosHandsArr);
 }
 
-cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking::ROIArrayConstPtr& msg)
+cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const facetracking::ROIArrayConstPtr& msg)
 {
 	cv::Mat output = cv::Mat::zeros(likelihood.rows,likelihood.cols,CV_8UC3);
 	GaussianBlur(likelihood, likelihood, cv::Size(15,15), 3, 3, BORDER_DEFAULT);
@@ -329,7 +329,7 @@ cv::Mat PFTracker::getMeasurementProposal(cv::Mat likelihood, const faceTracking
 }
 	
 // perform particle filter update to estimate upper body joint positions
-void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const faceTracking::ROIArrayConstPtr& msg)
+void PFTracker::callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const facetracking::ROIArrayConstPtr& msg)
 {
 	cv::Mat image = (cv_bridge::toCvCopy(immsg, sensor_msgs::image_encodings::RGB8))->image; 
 	

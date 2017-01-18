@@ -22,9 +22,9 @@
 #include <string>
 #include <ros/package.h>
 #include "opencv2/ml/ml.hpp"
-#include "measurementproposals/HFPose2D.h"
-#include "measurementproposals/HFPose2DArray.h"
-#include "faceTracking/ROIArray.h"
+#include "handblobtracker/HFPose2D.h"
+#include "handblobtracker/HFPose2DArray.h"
+#include "facetracking/ROIArray.h"
 #include <tf/transform_broadcaster.h>
 
 class PFTracker
@@ -44,20 +44,20 @@ class PFTracker
 		
 		cv::Mat m1_pca, m2_pca, h1_pca, h2_pca;
 				
-		void callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const faceTracking::ROIArrayConstPtr& msg);
+		void callback(const sensor_msgs::ImageConstPtr& immsg, const sensor_msgs::ImageConstPtr& like_msg, const facetracking::ROIArrayConstPtr& msg);
 		
-		message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, faceTracking::ROIArray>* sync;
+		message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image, facetracking::ROIArray>* sync;
 		message_filters::Subscriber<sensor_msgs::Image> image_sub;
 		message_filters::Subscriber<sensor_msgs::Image> likelihood_sub;
-		message_filters::Subscriber<faceTracking::ROIArray> pose_sub;
+		message_filters::Subscriber<facetracking::ROIArray> pose_sub;
 		
 		cv::Mat rpy(double roll, double pitch, double yaw);
 		cv::Mat get3Dpose(cv::Mat estimate);
 				
-		void publishTFtree(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg);
-		void publish2Dpos(cv::Mat e1, cv::Mat e2, const faceTracking::ROIArrayConstPtr& msg, int frame_id);
+		void publishTFtree(cv::Mat e1, cv::Mat e2, const facetracking::ROIArrayConstPtr& msg);
+		void publish2Dpos(cv::Mat e1, cv::Mat e2, const facetracking::ROIArrayConstPtr& msg, int frame_id);
 						
-		cv::Mat getMeasurementProposal(cv::Mat likelihood, const faceTracking::ROIArrayConstPtr& msg);
+		cv::Mat getMeasurementProposal(cv::Mat likelihood, const facetracking::ROIArrayConstPtr& msg);
 		
 		cv::Mat clutter;
 		

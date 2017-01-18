@@ -5,21 +5,21 @@
   <param name="left_arm_training" value="$(arg file1)"/> 
   <param name="right_arm_training" value="$(arg file2)"/> 
 
-  <node pkg="faceTracking" type="faceTrack" name="faceDetector" output="screen">
-	<remap from="image" to="/rgb/image_raw"/>
+  <node pkg="facetracking" type="faceTrack" name="faceDetector" output="screen">
+	<remap from="image" to="/rgb/image_color"/>
   </node>
 
-  <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/mgb45/Desktop/2014-01-31-13-02-00.bag"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/michael/2013-05-21-13-10-41.bag"/>
 
-  <node pkg="measurementproposals" type="handTracker" name="handTracker" output="screen">
-	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
+  <node pkg="handblobtracker" type="handTracker" name="handTracker" output="screen">
+	<remap from="/rgb/image_color" to="/rgb/image_color"/>
   </node>
 
   <node pkg="mkfbodytracker_pdaf" type="poseTracker" name="poseTracker" output="screen">
-	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
+	<remap from="/rgb/image_color" to="/rgb/image_color"/>
   </node>
 
-<node pkg="rviz" type="rviz" name="rviz" args="-d $(find pfBodyTracker)/view.rviz"/>
+ <node pkg="rviz" type="rviz" name="rviz" args="-d $(find mkfbodytracker_pdaf)/demo.rviz"/>
 
 
 </launch>

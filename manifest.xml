@@ -16,9 +16,9 @@
   <depend package="rospy"/>
   <depend package="tf"/>
   <depend package="message_filters"/>
-  <depend package="faceTracking"/>
-  <depend package="measurementproposals"/>
-  <depend package="handBlobTracker"/>
+  <depend package="facetracking"/>
+  <!--<depend package="measurementproposals"/>-->
+  <depend package="handblobtracker"/>
 </package>
 
 
