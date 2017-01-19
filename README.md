@@ -6,8 +6,8 @@ This is very much research code, but the following should get a test case up and
 	mkdir pose_estimation
 	cd pose_estimation/
 	git clone https://github.com/mgb45/handblobtracker.git
-	git clone -b KF_proposals https://github.com/mgb45/facetracking.git
-	git clone https://github.com/mgb45/mkfbodytracker_pdaf.git
+	git clone https://github.com/mgb45/facetracking.git
+	git clone -b KF_proposals https://github.com/mgb45/mkfbodytracker_pdaf.git
 	rosws init . /opt/ros/kinetic
 	source setup.bash
 	rosws set handblobtracker/
