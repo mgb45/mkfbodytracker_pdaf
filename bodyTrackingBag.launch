@@ -1,26 +1,26 @@
 <launch>
-  <arg name="file1" default="/training/data13D_PCA_100000_29_13.yml"/>
-  <arg name="file2" default="/training/data23D_PCA_100000_29_13.yml"/>
+  <arg name="file1" default="/training/data13D_PCA_100000_25_15.yml"/>
+  <arg name="file2" default="/training/data23D_PCA_100000_25_15.yml"/>
 
   <param name="left_arm_training" value="$(arg file1)"/> 
   <param name="right_arm_training" value="$(arg file2)"/> 
 
   <node pkg="facetracking" type="faceTrack" name="faceDetector" output="screen">
-	<remap from="image" to="/rgb/image_color"/>
+	<remap from="image" to="/rgb/image_raw"/>
   </node>
 
-  <node pkg="rosbag" type="play" name="rosbag" args="--loop /home/mburke/Downloads/2014-08-05-14-43-42.bag"/>
+  <node pkg="rosbag" type="play" name="rosbag" args="--loop $(find mkfbodytracker_pdaf)/2014-01-31-13-02-00.bag"/>
 
 
   <node pkg="handblobtracker" type="handTracker" name="handTracker" output="screen">
-<!--	<remap from="/rgb/image_color" to="/rgb/image_raw"/>-->
+	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
   </node>
 
   <node pkg="mkfbodytracker_pdaf" type="poseTracker" name="poseTracker" output="screen">
-<!--	<remap from="/rgb/image_color" to="/rgb/image_raw"/>-->
+	<remap from="/rgb/image_color" to="/rgb/image_raw"/>
   </node>
 
-<node pkg="rviz" type="rviz" name="rviz"/>
+<node pkg="rviz" type="rviz" name="rviz"  args="-d $(find mkfbodytracker_pdaf)/rviz.rviz"/>
 
 
 </launch>
