@@ -42,7 +42,7 @@ roslaunch mkfbodytracker_pdaf bodyTrackingBag.launch
 
 # Caveats
 * The image input in the MWE can be replaced with a suitable ros image topic, say from a webcam streamer like http://wiki.ros.org/gscam, but the face and head detector (from other packages) are hand tuned for the test sequence accompanying the package. More accurate detection of head and hands is required for anything useful. If you can get other joint measurements, the final pose estimate will be even better, but code will need to be modified to accomodate this.
-* The motion model has only been trained on predominantly front-on, simple hand motions, if you want to train a new model use [gmm_training](https://github.com/mgb45/)
-* The models provided have been trained with an xbox kinect camera, and use the camera calibration file in cal.yml for 3D reconstruction. If your camera differs wildy from this, re-training will be required.
+* The motion model has only been trained on predominantly front-on, simple hand motions, if you want to train a new model use [gmm_training](https://github.com/mgb45/gmm_training)
+* The models provided have been trained with an xbox kinect camera, and use the camera calibration file in cal.yml for 3D reconstruction. If your camera differs wildy from this, re-training will be required and you will need to replace cal.yml with something more suitable.
 
 
