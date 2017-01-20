@@ -37,7 +37,7 @@ rosmake mkfbodytracker_pdaf
 * Download test [bag file](https://drive.google.com/file/d/0BxI1ZklhNyhhdV9Fa0tDVW5pTDg/view?usp=sharing) and save in `mkfbodytracker_pdaf`
 * Run demo launch file
 ```
-roslaunch mkfbodytracker_pdaf bodytrackingBag.launch
+roslaunch mkfbodytracker_pdaf bodyTrackingBag.launch
 ```
 
 # Caveats
